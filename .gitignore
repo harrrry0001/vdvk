@@ -1,0 +1,57 @@
+# ─── Dependencies ───────────────────────────────────────────────────────────
+node_modules/
+
+# ─── Build output ───────────────────────────────────────────────────────────
+dist/
+dist-ssr/
+
+# ─── Environment & secrets ──────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+
+# ─── Logs ───────────────────────────────────────────────────────────────────
+logs/
+*.log
+npm-debug.log*
+
+# ─── Uploads & runtime data ─────────────────────────────────────────────────
+uploads/
+
+# ─── Cache ──────────────────────────────────────────────────────────────────
+.vite/
+.eslintcache
+*.tsbuildinfo
+
+# ─── IDE & editors ──────────────────────────────────────────────────────────
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+
+# ─── OS generated ───────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# ─── Tools & config ─────────────────────────────────────────────────────────
+.playwright-mcp/
+.superdesign/
+opencode.json
+
+# ─── Design files (exclude from repo) ───────────────────────────────────────
+/designs/
+
+# ─── Test data (large files) ────────────────────────────────────────────────
+*.xlsx
+Faciltiy Master.csv

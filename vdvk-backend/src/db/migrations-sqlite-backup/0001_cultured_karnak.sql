@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `uq_commodity_code` ON `commodities` (`code`);
