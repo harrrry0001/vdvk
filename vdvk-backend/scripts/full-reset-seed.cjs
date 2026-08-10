@@ -154,7 +154,7 @@ async function main() {
     `INSERT INTO users (id,name,username,password_hash,designation,mandal,vdvk_code,created_at,updated_at) VALUES ('USER-CC2','Community Coordinator 2','cc2','${pw}','CC','MND-002','VDK-002','${now}','${now}')`,
     `INSERT INTO users (id,name,username,password_hash,designation,mandal,facility_code,created_at,updated_at) VALUES ('USER-HUB-SUP','Hub Supervisor','hubsup','${pw}','Hub Supervisor','MND-001','FAC-HUB-001','${now}','${now}')`,
     `INSERT INTO users (id,name,username,password_hash,designation,mandal,facility_code,created_at,updated_at) VALUES ('USER-HUB-SUP2','Hub Supervisor 2','hubsup2','${pw}','Hub Supervisor','MND-002','FAC-HUB-002','${now}','${now}')`,
-    `INSERT INTO users (id,name,username,password_hash,designation,mandal,created_at,updated_at) VALUES ('USER-MDA','Master Data Admin','mda','${pw}','MDA','MND-001','${now}','${now}')`,
+    `INSERT INTO users (id,name,username,password_hash,designation,mandal,created_at,updated_at) VALUES ('USER-MDA','Admin','mda','${pw}','MDA','MND-001','${now}','${now}')`,
 
     // USER ROLES
     `INSERT INTO user_roles (user_id,role,is_primary,assigned_from) VALUES ('USER-PO','PO',1,'2025-04-01')`,
@@ -168,7 +168,7 @@ async function main() {
     `INSERT INTO user_roles (user_id,role,is_primary,assigned_from) VALUES ('USER-HUB-SUP2','Hub Supervisor',1,'2025-04-01')`,
     `INSERT INTO user_roles (user_id,role,is_primary,assigned_from) VALUES ('USER-MDA','MDA',1,'2025-04-01')`,
     `INSERT INTO user_roles (user_id,role,is_primary,assigned_from) VALUES ('USER-HUB-SUP','VDVK Facility Supervisor',0,'2025-04-01')`,
-    `INSERT INTO user_roles (user_id,role,is_primary,assigned_from) VALUES ('USER-HUB-SUP','Multipurpose Centre Supervisor',0,'2025-04-01')`,
+    `INSERT INTO user_roles (user_id,role,is_primary,assigned_from) VALUES ('USER-HUB-SUP','MPC Supervisor',0,'2025-04-01')`,
     `INSERT INTO user_roles (user_id,role,is_primary,assigned_from) VALUES ('USER-HUB-SUP','Haat Bazaar Supervisor',0,'2025-04-01')`,
 
     // SYSTEM CONFIG

@@ -147,7 +147,7 @@ async function seed() {
     { id: "USER-APM", name: "Assistant Project Manager", username: "apm", passwordHash, designation: "APM", mandal: "MND-001" },
     { id: "USER-CC", name: "Community Coordinator", username: "cc", passwordHash, designation: "CC", mandal: "MND-001", vdvkCode: "VDK-001" },
     { id: "USER-HUB-SUP", name: "Hub Supervisor", username: "hubsup", passwordHash, designation: "Hub Supervisor", mandal: "MND-001", facilityCode: "FAC-HUB-001" },
-    { id: "USER-MDA", name: "Master Data Admin", username: "mda", passwordHash, designation: "MDA" },
+    { id: "USER-MDA", name: "Admin", username: "mda", passwordHash, designation: "MDA" },
   ]).onConflictDoNothing();
   console.log("✓ Users (password: Vdvk@2025)");
 

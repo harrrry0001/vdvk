@@ -7,12 +7,12 @@ import { requireRole, HonoEnv } from "../../middleware/auth.js";
 export const settingsRoutes = new Hono<HonoEnv>();
 
 // ─── SYSTEM CONFIG ────────────────────────────────────────────────────────
-settingsRoutes.get("/config", requireRole("Admin", "MDA"), async (c) => {
+settingsRoutes.get("/config", requireRole("MDA"), async (c) => {
   const rows = await db.select().from(systemConfig).orderBy(systemConfig.key);
   return c.json(rows);
 });
 
-settingsRoutes.put("/config/:key", requireRole("Admin", "MDA"), async (c) => {
+settingsRoutes.put("/config/:key", requireRole("MDA"), async (c) => {
   const { key } = c.req.param();
   const body = await c.req.json<{ value: string }>();
   if (typeof body.value !== "string" || body.value.length > 500) {
@@ -28,12 +28,12 @@ settingsRoutes.put("/config/:key", requireRole("Admin", "MDA"), async (c) => {
 });
 
 // ─── EMAIL TEMPLATES ──────────────────────────────────────────────────────
-settingsRoutes.get("/templates", requireRole("Admin", "MDA"), async (c) => {
+settingsRoutes.get("/templates", requireRole("MDA"), async (c) => {
   const rows = await db.select().from(emailTemplates).orderBy(emailTemplates.templateKey);
   return c.json(rows);
 });
 
-settingsRoutes.put("/templates/:id", requireRole("Admin", "MDA"), async (c) => {
+settingsRoutes.put("/templates/:id", requireRole("MDA"), async (c) => {
   const { id } = c.req.param();
   const body = await c.req.json<{ subject?: string; bodyHtml?: string }>();
   const [existing] = await db.select().from(emailTemplates).where(eq(emailTemplates.id, Number(id))).limit(1);

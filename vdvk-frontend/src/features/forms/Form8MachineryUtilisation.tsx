@@ -688,11 +688,11 @@ export function Form8MachineryUtilisation() {
                     machineryOptions.find((m) => m.id === entry.machineryId)
                       ?.name ?? entry.machineryId;
                   const comName =
-                    (Array.isArray(commodities)
+                    ((Array.isArray(commodities)
                       ? (commodities as Record<string, unknown>[]).find(
                           (c) => (c.code as string) === entry.commodityCode
                         )?.name
-                      : undefined) ?? entry.commodityCode;
+                      : undefined) as string | undefined) ?? entry.commodityCode;
                   return (
                     <tr key={entry.id} className="hover:bg-slate-50 transition-colors">
                       <td className="p-4 border-r border-slate-100 text-xs">

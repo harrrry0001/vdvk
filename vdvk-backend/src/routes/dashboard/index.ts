@@ -8,11 +8,13 @@ import { machinery as machTable } from "../../db/schema/master/machinery.js";
 import { form1Collections } from "../../db/schema/transaction/form1-collection.js";
 import { form3Processing, form3ProcessingItems } from "../../db/schema/transaction/form3-processing.js";
 import { form4Sales } from "../../db/schema/transaction/form4-sales.js";
-import { form10ExpenditureItems } from "../../db/schema/transaction/form9-10-12.js";
+import { form10ExpenditureItems, form10FundUtilisation } from "../../db/schema/transaction/form9-10-12.js";
 import { stockLedger } from "../../db/schema/shared/stock-ledger.js";
 import { schemes } from "../../db/schema/master/scheme-exphead-customer-supplier.js";
 import { form2StockTransfers } from "../../db/schema/transaction/form2-stock-transfer.js";
-import { eq, sql, count, sum, and } from "drizzle-orm";
+import { form8Utilisation } from "../../db/schema/transaction/form8-utilisation.js";
+import { users } from "../../db/schema/master/user.js";
+import { eq, count, sum, and } from "drizzle-orm";
 import { requireRole, HonoEnv} from "../../middleware/auth.js";
 
 export const dashboardRoutes = new Hono<HonoEnv>();
@@ -129,23 +131,135 @@ dashboardRoutes.get("/fund-monitoring", requireRole("PO", "DPM"), async (c) => {
 });
 
 // ─── REQUEST MONITORING ───────────────────────────────────────────────────
-dashboardRoutes.get("/requests", requireRole("APM", "DPM", "PO"), async (c) => {
-  const { status, pendingWith = "APM", page = "1", limit = "20" } = c.req.query();
+// Returns a normalized, role-aware list of approval-tracked requests.
+//  - CC:   only their own Form 1 (MFP Collection) submissions
+//  - PO:   view-only across all forms (approval enforced in the UI)
+//  - DPM/APM/others: all forms; approve/reject authorization is enforced by
+//    each form's own requireRole guard on the /forms/*/approve endpoints.
+const REQUEST_PENDING_WITH: Record<string, string> = {
+  form1: "APM", form2: "APM", form3: "APM", form8: "APM",
+  form4: "DPM", form10: "DPM",
+};
+
+function daysPending(createdAt?: string | null): number {
+  if (!createdAt) return 0;
+  const ms = Date.now() - new Date(createdAt).getTime();
+  if (Number.isNaN(ms)) return 0;
+  return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
+}
+
+dashboardRoutes.get("/requests", async (c) => {
   const user = c.get("user");
+  const { status, vdvkCode } = c.req.query();
 
-  // Collect requests across forms
-  const form1Requests = await db.select({ id: form1Collections.id, txnNo: form1Collections.txnNo, formType: sql`'Form1'`, status: form1Collections.status, createdBy: form1Collections.createdBy, createdAt: form1Collections.createdAt, vdvkCode: form1Collections.vdvkCode }).from(form1Collections).where(status ? eq(form1Collections.status, status as any) : undefined).limit(5);
+  const usersRows = await db.select({ id: users.id, name: users.name }).from(users);
+  const userNames: Record<string, string> = {};
+  usersRows.forEach((u) => { userNames[u.id] = u.name; });
 
-  const form4Requests = await db.select({ id: form4Sales.id, txnNo: form4Sales.txnNo, formType: sql`'Form4'`, status: form4Sales.status, createdBy: form4Sales.createdBy, createdAt: form4Sales.createdAt }).from(form4Sales).limit(5);
+  const isCC = user.roles.includes("CC");
+  const statusCond = status ? eq(form1Collections.status, status as any) : undefined;
+  const statusCond2 = status ? eq(form2StockTransfers.status, status as any) : undefined;
+  const statusCond3 = status ? eq(form3Processing.status, status as any) : undefined;
+  const statusCond4 = status ? eq(form4Sales.status, status as any) : undefined;
+  const statusCond8 = status ? eq(form8Utilisation.status, status as any) : undefined;
+  const statusCond10 = status ? eq(form10FundUtilisation.status, status as any) : undefined;
 
-  const form2Requests = await db.select({ id: form2StockTransfers.id, txnNo: form2StockTransfers.txnNo, formType: sql`'Form2'`, status: form2StockTransfers.status, createdBy: form2StockTransfers.createdBy, createdAt: form2StockTransfers.createdAt }).from(form2StockTransfers).limit(5);
+  // Form 1 — MFP Collection (CC is the only creator; restricted to own when CC)
+  const f1Rows = await db.select({
+    id: form1Collections.id, txnNo: form1Collections.txnNo,
+    locationName: form1Collections.vdvkNameSnapshot,
+    mandal: form1Collections.createdByMandalSnapshot,
+    status: form1Collections.status, remarks: form1Collections.approvalRemarks,
+    createdBy: form1Collections.createdBy, role: form1Collections.createdByRoleSnapshot,
+    createdAt: form1Collections.createdAt,
+  }).from(form1Collections)
+    .where(isCC
+      ? statusCond ? and(eq(form1Collections.createdBy, user.userId), statusCond) : eq(form1Collections.createdBy, user.userId)
+      : statusCond);
 
-  return c.json({
-    form1: form1Requests,
-    form2: form2Requests,
-    form4: form4Requests,
-    total: form1Requests.length + form2Requests.length + form4Requests.length,
-  });
+  // Form 2 — Stock Transfer
+  const f2Rows = await db.select({
+    id: form2StockTransfers.id, txnNo: form2StockTransfers.txnNo,
+    locationName: form2StockTransfers.sentFromNameSnapshot,
+    status: form2StockTransfers.status, remarks: form2StockTransfers.approvalRemarks,
+    createdBy: form2StockTransfers.createdBy, role: form2StockTransfers.createdByRoleSnapshot,
+    createdAt: form2StockTransfers.createdAt,
+  }).from(form2StockTransfers).where(statusCond2);
+
+  // Form 3 — Processing
+  const f3Rows = await db.select({
+    id: form3Processing.id, txnNo: form3Processing.txnNo,
+    locationName: form3Processing.processingLocationNameSnapshot,
+    status: form3Processing.status, remarks: form3Processing.approvalRemarks,
+    createdBy: form3Processing.createdBy, role: form3Processing.createdByRoleSnapshot,
+    createdAt: form3Processing.createdAt,
+  }).from(form3Processing).where(statusCond3);
+
+  // Form 4 — Sales
+  const f4Rows = await db.select({
+    id: form4Sales.id, txnNo: form4Sales.txnNo,
+    locationName: form4Sales.saleLocationNameSnapshot,
+    status: form4Sales.status, remarks: form4Sales.approvalRemarks,
+    createdBy: form4Sales.createdBy, role: form4Sales.createdByRoleSnapshot,
+    createdAt: form4Sales.createdAt,
+  }).from(form4Sales).where(statusCond4);
+
+  // Form 8 — Machinery Utilisation
+  const f8Rows = await db.select({
+    id: form8Utilisation.id, txnNo: form8Utilisation.txnNo,
+    status: form8Utilisation.status, remarks: form8Utilisation.verificationRemarks,
+    createdBy: form8Utilisation.createdBy, role: form8Utilisation.createdByRoleSnapshot,
+    createdAt: form8Utilisation.createdAt,
+  }).from(form8Utilisation).where(statusCond8);
+
+  // Form 10 — Weekly Fund Utilisation
+  const f10Rows = await db.select({
+    id: form10FundUtilisation.id, txnNo: form10FundUtilisation.txnNo,
+    status: form10FundUtilisation.status, remarks: form10FundUtilisation.approvalRemarks,
+    createdBy: form10FundUtilisation.createdBy,
+    createdAt: form10FundUtilisation.createdAt,
+  }).from(form10FundUtilisation).where(statusCond10);
+
+  const fallbackLocation: Record<string, string> = {
+    form8: "Machinery Utilisation",
+    form10: "Weekly Fund Utilisation",
+  };
+
+  const collect = (rows: any[], formKey: string) => rows.map((r) => ({
+    id: r.id,
+    requestId: r.txnNo,
+    formKey,
+    formLabel: `Form ${formKey.replace("form", "")}`,
+    submittedBy: userNames[r.createdBy] || r.createdBy,
+    submittedByRole: r.role || "",
+    locationName: r.locationName || fallbackLocation[formKey] || "",
+    mandal: r.mandal || "",
+    status: r.status,
+    pendingWith: REQUEST_PENDING_WITH[formKey] || "None",
+    remarks: r.remarks,
+    createdAt: r.createdAt,
+    daysPending: daysPending(r.createdAt),
+  }));
+
+  let requests: any[] = [];
+  if (isCC) {
+    // CC: own Form 1 submissions only
+    requests = collect(f1Rows, "form1");
+  } else {
+    requests = [
+      ...collect(f1Rows, "form1"),
+      ...collect(f2Rows, "form2"),
+      ...collect(f3Rows, "form3"),
+      ...collect(f4Rows, "form4"),
+      ...collect(f8Rows, "form8"),
+      ...collect(f10Rows, "form10"),
+    ];
+  }
+
+  if (vdvkCode) requests = requests.filter((r) => r.locationName === vdvkCode);
+
+  requests.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+  return c.json({ requests });
 });
 
 // ─── MACHINERY STATUS SUMMARY ─────────────────────────────────────────────
@@ -157,3 +271,4 @@ dashboardRoutes.get("/machinery-summary", async (c) => {
   }));
   return c.json(results);
 });
+

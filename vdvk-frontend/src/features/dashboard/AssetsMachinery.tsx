@@ -53,7 +53,7 @@ export function AssetsMachinery() {
 
       <div className="bg-white rounded-xl border border-gray-100 p-8 text-center">
         <p className="text-sm text-gray-500">
-          Individual machinery details available in MDA Machinery Management
+          Individual machinery details available in Admin Machinery Management
         </p>
       </div>
     </div>

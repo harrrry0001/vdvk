@@ -249,7 +249,7 @@ form10Routes.patch("/:id/reopen", requireRole("APM"), async (c) => {
 // ═══════════════════════════════════════════════════════════════════════════
 export const form11Routes = new Hono<HonoEnv>();
 
-form11Routes.post("/", requireRole("Admin", "MDA"), async (c) => {
+form11Routes.post("/", requireRole("MDA"), async (c) => {
   const body = await c.req.json();
   const user = c.get("user");
   const code = `FAC-${uuid().slice(0, 8).toUpperCase()}`;
@@ -273,7 +273,7 @@ form11Routes.post("/", requireRole("Admin", "MDA"), async (c) => {
   return c.json({ code, status: "Draft" }, 201);
 });
 
-form11Routes.patch("/:code/submit", requireRole("Admin", "MDA"), async (c) => {
+form11Routes.patch("/:code/submit", requireRole("MDA"), async (c) => {
   const { code } = c.req.param();
   const [r] = await db.select().from(facTable).where(eq(facTable.code, code)).limit(1);
   if (!r) return c.json({ error: "Not found" }, 404);
@@ -318,7 +318,7 @@ form11Routes.get("/", async (c) => {
   return c.json(rows);
 });
 
-form11Routes.patch("/:code/reopen", requireRole("Admin", "MDA"), async (c) => {
+form11Routes.patch("/:code/reopen", requireRole("MDA"), async (c) => {
   const { code } = c.req.param();
   const user = c.get("user");
   const [r] = await db.select().from(facTable).where(eq(facTable.code, code)).limit(1);

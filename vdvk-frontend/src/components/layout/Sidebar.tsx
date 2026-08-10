@@ -32,7 +32,7 @@ const managementNav: NavItem[] = [
 
 // MDA/Admin — Master data CRUD
 const mdaNav: NavItem[] = [
-  { label: "MDA Dashboard", path: "/mda", icon: <LayoutTemplate size={20} /> },
+  { label: "Admin Dashboard", path: "/mda", icon: <LayoutTemplate size={20} /> },
   { label: "VDVK Registration", path: "/mda/vdvks", icon: <Building size={20} /> },
   { label: "Beneficiary Mgmt", path: "/mda/beneficiaries", icon: <UserCheck size={20} /> },
   { label: "Machinery Mgmt", path: "/mda/machinery", icon: <Cog size={20} /> },
@@ -109,14 +109,14 @@ export function Sidebar() {
     branding = "ITDA PADERU";
   } else if (isAdmin || isMDA) {
     navItems = mdaNav;
-    branding = "MDA ADMIN";
+    branding = "ADMIN";
   } else if (isAPM) {
     navItems = apmNav;
     branding = "ITDA PADERU";
   } else if (hasRole("CC")) {
     navItems = ccNav;
     branding = "CC PORTAL";
-  } else if (hasRole("Hub Supervisor", "Multipurpose Centre Supervisor", "Haat Bazaar Supervisor", "VDVK Facility Supervisor")) {
+  } else if (hasRole("Hub Supervisor", "MPC Supervisor", "Haat Bazaar Supervisor", "VDVK Facility Supervisor")) {
     navItems = supervisorNav;
     branding = "SUPERVISOR";
   } else {
@@ -185,7 +185,7 @@ export function Sidebar() {
             >
               <span className="text-xl shrink-0">{item.icon}</span>
               {!isCollapsed && (
-                <span className="uppercase text-xs tracking-[0.2em] truncate">{item.label}</span>
+                <span className="uppercase text-[10px] tracking-[0.16em] truncate">{item.label}</span>
               )}
             </NavLink>
           ))}
@@ -206,11 +206,6 @@ export function Sidebar() {
           title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {isCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
-          {!isCollapsed && (
-            <span className="uppercase text-xs tracking-[0.2em]">
-              Collapse
-            </span>
-          )}
         </button>
         <button
           onClick={handleLogout}

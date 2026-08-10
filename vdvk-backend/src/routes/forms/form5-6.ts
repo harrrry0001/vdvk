@@ -24,7 +24,7 @@ const vdvkSchema = z.object({
   commodities: z.array(z.string()).optional(),
 });
 
-form5Routes.post("/", requireRole("Admin", "MDA"), async (c) => {
+form5Routes.post("/", requireRole("MDA"), async (c) => {
   const body = vdvkSchema.parse(await c.req.json());
   const user = c.get("user");
   const code = `VDK-${uuid().slice(0, 4).toUpperCase()}`;
@@ -50,7 +50,7 @@ form5Routes.post("/", requireRole("Admin", "MDA"), async (c) => {
   return c.json({ code, status: "Draft" }, 201);
 });
 
-form5Routes.patch("/:code/submit", requireRole("Admin", "MDA"), async (c) => {
+form5Routes.patch("/:code/submit", requireRole("MDA"), async (c) => {
   const { code } = c.req.param();
   const [r] = await db.select().from(vdvks).where(eq(vdvks.code, code)).limit(1);
   if (!r) return c.json({ error: "Not found" }, 404);
@@ -94,7 +94,7 @@ form5Routes.patch("/:code/approve", requireRole("DPM"), async (c) => {
   return c.json({ code, status: approved ? "Approved" : "Rejected" });
 });
 
-form5Routes.patch("/:code/reopen", requireRole("Admin", "MDA"), async (c) => {
+form5Routes.patch("/:code/reopen", requireRole("MDA"), async (c) => {
   const { code } = c.req.param();
   const user = c.get("user");
   const [r] = await db.select().from(vdvks).where(eq(vdvks.code, code)).limit(1);
@@ -143,7 +143,7 @@ const benSchema = z.object({
   registrationMode: z.enum(["Bulk", "Individual"]).default("Individual"),
 });
 
-form6Routes.post("/", requireRole("Admin", "MDA"), async (c) => {
+form6Routes.post("/", requireRole("MDA"), async (c) => {
   const body = benSchema.parse(await c.req.json());
   const user = c.get("user");
   const id = `BEN-${uuid().slice(0, 8).toUpperCase()}`;
@@ -163,7 +163,7 @@ form6Routes.post("/", requireRole("Admin", "MDA"), async (c) => {
 });
 
 // CSV import (multipart file upload)
-form6Routes.post("/import", requireRole("Admin", "MDA"), async (c) => {
+form6Routes.post("/import", requireRole("MDA"), async (c) => {
   const fd = await c.req.formData();
   const file = fd.get("file");
   if (!(file instanceof File)) return c.json({ error: "Missing file field" }, 400);
@@ -226,7 +226,7 @@ form6Routes.post("/import", requireRole("Admin", "MDA"), async (c) => {
 });
 
 // Bulk beneficiary upload
-form6Routes.post("/bulk", requireRole("Admin", "MDA"), async (c) => {
+form6Routes.post("/bulk", requireRole("MDA"), async (c) => {
   const body = await c.req.json<{ vdvkCode: string; beneficiaries: Array<{ name: string; age?: number; gender?: string; mandal: string }> }>();
   const user = c.get("user");
   const now = new Date().toISOString();
@@ -253,7 +253,7 @@ form6Routes.post("/bulk", requireRole("Admin", "MDA"), async (c) => {
   return c.json({ count: rows.length, ids: rows.map(r => r.id) }, 201);
 });
 
-form6Routes.patch("/:id/submit", requireRole("Admin", "MDA"), async (c) => {
+form6Routes.patch("/:id/submit", requireRole("MDA"), async (c) => {
   const { id } = c.req.param();
   const [r] = await db.select().from(beneficiaries).where(eq(beneficiaries.id, id)).limit(1);
   if (!r) return c.json({ error: "Not found" }, 404);
@@ -299,7 +299,7 @@ form6Routes.patch("/:id/approve", requireRole("DPM"), async (c) => {
   return c.json({ id, status: approved ? "Approved" : "Rejected" });
 });
 
-form6Routes.patch("/:id/reopen", requireRole("Admin", "MDA"), async (c) => {
+form6Routes.patch("/:id/reopen", requireRole("MDA"), async (c) => {
   const { id } = c.req.param();
   const user = c.get("user");
   const [r] = await db.select().from(beneficiaries).where(eq(beneficiaries.id, id)).limit(1);
@@ -333,7 +333,7 @@ form6Routes.get("/:id", async (c) => {
   return c.json({ ...r, commodities });
 });
 
-form6Routes.put("/:id", requireRole("Admin", "MDA"), async (c) => {
+form6Routes.put("/:id", requireRole("MDA"), async (c) => {
   const { id } = c.req.param();
   const body = benSchema.partial().parse(await c.req.json());
   const [r] = await db.select().from(beneficiaries).where(eq(beneficiaries.id, id)).limit(1);

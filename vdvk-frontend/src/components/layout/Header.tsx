@@ -1,11 +1,14 @@
-import { Bell, Search, LogOut } from "lucide-react";
+import { Bell, Search, LogOut, Building2, Leaf, Factory, MapPin } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { notificationsApi } from "@/api/endpoints/notifications";
 import { authApi } from "@/api/endpoints/auth";
+import { masterApi } from "@/api/endpoints/master";
+import { mdaApi } from "@/api/endpoints/mda";
 import { ROLE_LABELS } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 
 interface Notification {
   id: string;
@@ -21,6 +24,112 @@ export function Header() {
   const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
   const queryClient = useQueryClient();
+
+  /* ── Global Search ─────────────────────────────────────────────── */
+  const [searchText, setSearchText] = useState("");
+  const [debounced, setDebounced] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(searchText.trim()), 250);
+    return () => clearTimeout(t);
+  }, [searchText]);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setSearchOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const activeSearch = debounced.length >= 2;
+
+  const { data: searchVdvks = [] } = useQuery({
+    queryKey: ["search", "vdvks"],
+    queryFn: () => masterApi.getVdvks().then((r) => (Array.isArray(r.data) ? r.data : []) as any[]),
+    enabled: activeSearch,
+    staleTime: 60_000,
+  });
+
+  const { data: searchCommodities = [] } = useQuery({
+    queryKey: ["search", "commodities"],
+    queryFn: () => masterApi.getCommodities().then((r) => (Array.isArray(r.data) ? r.data : []) as any[]),
+    enabled: activeSearch,
+    staleTime: 60_000,
+  });
+
+  const { data: searchFacilities = [] } = useQuery({
+    queryKey: ["search", "facilities"],
+    queryFn: () => mdaApi.getFacilitiesByType().then((r) => (Array.isArray(r.data) ? r.data : []) as any[]),
+    enabled: activeSearch,
+    staleTime: 60_000,
+  });
+
+  const searchResults = useMemo(() => {
+    if (!activeSearch) return { vdvks: [], commodities: [], facilities: [], mandals: [] };
+    const q = debounced.toLowerCase();
+    const vdvks = (searchVdvks as any[])
+      .filter((v) => (v.name || "").toLowerCase().includes(q) || (v.code || "").toLowerCase().includes(q))
+      .slice(0, 5)
+      .map((v) => ({ type: "VDVK", label: v.name, sub: `${v.code} · ${v.mandal || ""}`, to: "/dashboard/vdvk-performance" }));
+    const commodities = (searchCommodities as any[])
+      .filter((c) => (c.name || "").toLowerCase().includes(q) || (c.code || "").toLowerCase().includes(q))
+      .slice(0, 5)
+      .map((c) => ({ type: "Commodity", label: c.name, sub: `${c.code} · ${c.defaultUnit || ""}`, to: "/dashboard" }));
+    const facilities = (searchFacilities as any[])
+      .filter((f) => (f.name || "").toLowerCase().includes(q) || (f.type || "").toLowerCase().includes(q))
+      .slice(0, 5)
+      .map((f) => ({ type: f.type || "Facility", label: f.name, sub: `${f.code} · ${f.mandal || ""}`, to: "/dashboard/hub-performance" }));
+    const mandals = [...new Set((searchVdvks as any[]).map((v) => v.mandal).filter(Boolean))]
+      .filter((m) => m.toLowerCase().includes(q))
+      .slice(0, 4)
+      .map((m) => ({ type: "Mandal", label: m, sub: "Mandal", to: "/dashboard" }));
+    return { vdvks, commodities, facilities, mandals };
+  }, [activeSearch, debounced, searchVdvks, searchCommodities, searchFacilities]);
+
+  const hasResults =
+    searchResults.vdvks.length +
+    searchResults.commodities.length +
+    searchResults.facilities.length +
+    searchResults.mandals.length > 0;
+
+  const typeIcon = (type: string) => {
+    if (type === "VDVK") return <Building2 size={14} className="shrink-0" />;
+    if (type === "Commodity") return <Leaf size={14} className="shrink-0" />;
+    if (type === "Mandal") return <MapPin size={14} className="shrink-0" />;
+    return <Factory size={14} className="shrink-0" />;
+  };
+
+  const goToResult = (r: { to: string }) => {
+    setSearchText("");
+    setDebounced("");
+    setSearchOpen(false);
+    navigate(r.to);
+  };
+
+  const renderGroup = (title: string, items: { type: string; label: string; sub: string; to: string }[]) =>
+    items.length > 0 ? (
+      <div className="py-1">
+        <p className="px-3 pt-1 pb-1 text-[9px] font-black uppercase tracking-widest text-charcoal/40">{title}</p>
+        {items.map((item, i) => (
+          <button
+            key={`${item.type}-${item.label}-${i}`}
+            onClick={() => goToResult(item)}
+            className="w-full flex items-start gap-2 px-3 py-2 text-left hover:bg-golden/10 transition-colors"
+          >
+            <span className="text-charcoal/40 mt-0.5">{typeIcon(item.type)}</span>
+            <span className="min-w-0">
+              <span className="block text-xs font-semibold text-charcoal truncate">{item.label}</span>
+              <span className="block text-[10px] text-charcoal/40 truncate">{item.sub}</span>
+            </span>
+          </button>
+        ))}
+      </div>
+    ) : null;
 
   const { data: profile } = useQuery({
     queryKey: ["auth", "me"],
@@ -72,19 +181,46 @@ export function Header() {
       <div className="flex items-center gap-8 flex-1">
         <h2 className="font-display text-2xl text-golden tracking-widest shrink-0">VDVK MIS</h2>
 
-        <div className="relative max-w-xl w-full hidden md:block">
+        <div ref={searchRef} className="relative max-w-xl w-full hidden md:block">
           <div className="relative flex items-center">
             <span className="absolute left-4 font-display text-[10px] text-golden border-r border-golden/30 pr-3 mr-3">
               SEARCH
             </span>
             <input
               type="text"
+              value={searchText}
+              onChange={(e) => {
+                setSearchText(e.target.value);
+                setSearchOpen(true);
+              }}
+              onFocus={() => setSearchOpen(true)}
               placeholder="Search Mandal, VDVK, Commodity, Hub, Haat Bazaar..."
               className="w-full bg-white/5 border-none pl-24 pr-10 py-2 text-white text-xs
                          placeholder:text-white/20 focus:ring-1 focus:ring-golden transition-all outline-none"
             />
             <Search className="absolute right-4 text-white/30" size={16} />
           </div>
+
+          {searchOpen && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-white shadow-2xl border border-charcoal/10 z-50 max-h-96 overflow-y-auto custom-scrollbar">
+              {activeSearch && hasResults && (
+                <>
+                  {renderGroup("VDVK Centers", searchResults.vdvks)}
+                  {renderGroup("Commodities", searchResults.commodities)}
+                  {renderGroup("Facilities", searchResults.facilities)}
+                  {renderGroup("Mandals", searchResults.mandals)}
+                </>
+              )}
+              {activeSearch && !hasResults && (
+                <div className="p-6 text-center text-xs text-gray-400">No matches found</div>
+              )}
+              {!activeSearch && (
+                <div className="p-6 text-center text-xs text-gray-400">
+                  Type at least 2 characters to search
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

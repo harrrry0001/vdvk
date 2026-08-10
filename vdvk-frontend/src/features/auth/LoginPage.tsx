@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Eye, EyeOff, ShieldCheck, ChevronDown, ArrowRight, LayoutTemplate, LayoutDashboard } from "lucide-react";
+import { Eye, EyeOff, ArrowRight } from "lucide-react";
 import { authApi } from "@/api/endpoints/auth";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -88,35 +88,6 @@ export function LoginPage() {
 
           {/* Login Form */}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            {/* Role Selection */}
-            <div>
-              <label className="block text-xs font-bold text-[#171e19] uppercase tracking-tighter mb-2">
-                User Role
-              </label>
-              <div className="relative">
-                <select
-                  className="w-full h-14 px-5 bg-white border border-[#171e19]/10 rounded-xl appearance-none
-                             focus:ring-2 focus:ring-[#ffe17c] focus:border-[#171e19] outline-none transition-all
-                             font-medium text-[#171e19] cursor-pointer"
-                  defaultValue=""
-                >
-                  <option value="" disabled>Select Designation</option>
-                  <option value="PO">PO (Project Officer)</option>
-                  <option value="DPM">DPM (District Project Manager)</option>
-                  <option value="APM">APM (Asst. Project Manager)</option>
-                  <option value="MDA">MDA (Management Data Analyst)</option>
-                  <option value="CC">CC (Cluster Coordinator)</option>
-                  <option value="Hub Supervisor">Hub Supervisor</option>
-                  <option value="MPC Supervisor">MPC Supervisor</option>
-                  <option value="Haat Bazaar Supervisor">Haat Bazaar Supervisor</option>
-                  <option value="VDVK Head">VDVK Head</option>
-                </select>
-                <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-[#171e19]">
-                  <ChevronDown size={18} />
-                </div>
-              </div>
-            </div>
-
             {/* Username */}
             <div>
               <label className="block text-xs font-bold text-[#171e19] uppercase tracking-tighter mb-2">

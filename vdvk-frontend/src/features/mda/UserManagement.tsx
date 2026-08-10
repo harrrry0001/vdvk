@@ -112,7 +112,7 @@ const ROLE_BADGE: Record<string, string> = {
   CC: "bg-purple-100 text-purple-700",
   Supervisor: "bg-orange-100 text-orange-700",
   "VDVK Head": "bg-teal-100 text-teal-700",
-  Admin: "bg-amber-100 text-amber-700",
+  MDA: "bg-amber-100 text-amber-700",
   APD: "bg-indigo-100 text-indigo-700",
 };
 
@@ -337,7 +337,27 @@ export function UserManagement() {
     queryKey: ["mda", "users"],
     queryFn: async () => {
       const res = await mdaApi.getUsers();
-      return (res.data?.data ?? res.data ?? []) as MdaUser[];
+      const rows = (Array.isArray(res.data) ? res.data : (res.data?.data ?? [])) as Array<
+        Record<string, unknown> & { roles?: Array<{ role: string; isPrimary?: boolean }> }
+      >;
+      return rows.map((u) => {
+        const primary = (u.roles ?? []).find((r) => r.isPrimary) ?? (u.roles ?? [])[0];
+        const role = primary?.role ?? (u.designation as string) ?? "";
+        const area = [u.mandal, u.vdvkCode, u.facilityCode].filter(Boolean).join(" · ");
+        return {
+          id: u.id as string,
+          userId: u.id as string,
+          name: u.name as string,
+          username: u.username as string,
+          email: (u.email as string) ?? "",
+          mobile: (u.mobile as string) ?? "",
+          role,
+          designation: (u.designation as string) ?? "",
+          mandal: (u.mandal as string) ?? "",
+          assignedArea: area,
+          status: u.status === "Inactive" ? "Inactive" : "Active",
+        } as MdaUser;
+      });
     },
   });
 
@@ -504,6 +524,13 @@ export function UserManagement() {
         ),
       },
       {
+        accessorKey: "username",
+        header: "Username",
+        cell: ({ getValue }) => (
+          <span className="font-mono text-xs text-charcoal/70">{getValue<string>()}</span>
+        ),
+      },
+      {
         accessorKey: "name",
         header: "Name & Contact",
         cell: ({ row }) => (
@@ -657,7 +684,7 @@ export function UserManagement() {
           >
             <option>All Roles</option>
             {ROLE_OPTIONS.map((r) => (
-              <option key={r}>{ROLE_LABELS[r] ?? r}</option>
+              <option key={r} value={r}>{ROLE_LABELS[r] ?? r}</option>
             ))}
           </select>
         </div>
@@ -707,7 +734,7 @@ export function UserManagement() {
           >
             <option>All Mandals</option>
             {mandalOptions.map((m) => (
-              <option key={m.code}>{m.name}</option>
+              <option key={m.code} value={m.code}>{m.name}</option>
             ))}
           </select>
         </div>
@@ -807,7 +834,7 @@ export function UserManagement() {
               ))}
               {table.getRowModel().rows.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="p-0">
+                  <td colSpan={8} className="p-0">
                     <EmptyState
                       icon={<Users size={48} />}
                       title="No users found"

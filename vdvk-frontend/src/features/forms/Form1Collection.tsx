@@ -134,6 +134,16 @@ export function Form1Collection() {
     saveMutation.mutate(data);
   };
 
+  const onSubmitForApproval = (data: Form1Data) => {
+    saveMutation.mutate(data, {
+      onSuccess: (res) => {
+        queryClient.invalidateQueries({ queryKey: ["forms", "form1"] });
+        const id = (res as { data?: { id?: string } })?.data?.id;
+        if (id) submitMutation.mutate(id);
+      },
+    });
+  };
+
   const isError = vdvksError || commoditiesError;
 
   if (isError)
@@ -303,8 +313,11 @@ export function Form1Collection() {
               ))}
             </div>
             <div className="flex items-center gap-3">
-              <button type="submit" className="bg-white border border-gray-200 text-charcoal px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-gray-50 transition-colors flex items-center gap-2" disabled={saveMutation.isPending}>
+              <button type="button" onClick={handleSubmit(onSubmit)} className="bg-white border border-gray-200 text-charcoal px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-gray-50 transition-colors flex items-center gap-2" disabled={saveMutation.isPending}>
                 <Save size={16} />{saveMutation.isPending ? "Saving..." : "Save Draft"}
+              </button>
+              <button type="button" onClick={handleSubmit(onSubmitForApproval)} className="bg-golden text-charcoal px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-golden-600 transition-colors flex items-center gap-2 disabled:opacity-50" disabled={submitMutation.isPending}>
+                {submitMutation.isPending ? "Submitting..." : "Submit for Approval"}
               </button>
             </div>
           </div>

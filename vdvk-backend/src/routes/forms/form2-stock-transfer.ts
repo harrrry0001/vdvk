@@ -35,7 +35,7 @@ const formSchema = z.object({
 });
 
 // CREATE DRAFT
-form2Routes.post("/", requireRole("Hub Supervisor", "Multipurpose Centre Supervisor", "Haat Bazaar Supervisor", "VDVK Facility Supervisor"), async (c) => {
+form2Routes.post("/", requireRole("Hub Supervisor", "MPC Supervisor", "Haat Bazaar Supervisor", "VDVK Facility Supervisor"), async (c) => {
   const body = formSchema.parse(await c.req.json());
   const user = c.get("user");
   const id = uuid(); const txnNo = `${txnPrefix}-${Date.now().toString(36).toUpperCase()}`;
@@ -57,7 +57,7 @@ form2Routes.post("/", requireRole("Hub Supervisor", "Multipurpose Centre Supervi
 });
 
 // SUBMIT
-form2Routes.patch("/:id/submit", requireRole("Hub Supervisor", "Multipurpose Centre Supervisor", "Haat Bazaar Supervisor", "VDVK Facility Supervisor"), async (c) => {
+form2Routes.patch("/:id/submit", requireRole("Hub Supervisor", "MPC Supervisor", "Haat Bazaar Supervisor", "VDVK Facility Supervisor"), async (c) => {
   const { id } = c.req.param();
   const [r] = await db.select().from(f2Header).where(eq(f2Header.id, id)).limit(1);
   if (!r) return c.json({ error: "Not found" }, 404);
@@ -155,7 +155,7 @@ form2Routes.get("/:id", async (c) => {
 });
 
 // UPDATE DRAFT
-form2Routes.put("/:id", requireRole("Hub Supervisor", "Multipurpose Centre Supervisor", "Haat Bazaar Supervisor", "VDVK Facility Supervisor"), async (c) => {
+form2Routes.put("/:id", requireRole("Hub Supervisor", "MPC Supervisor", "Haat Bazaar Supervisor", "VDVK Facility Supervisor"), async (c) => {
   const { id } = c.req.param();
   const body = formSchema.partial().parse(await c.req.json());
   const [r] = await db.select().from(f2Header).where(eq(f2Header.id, id)).limit(1);
@@ -175,7 +175,7 @@ form2Routes.put("/:id", requireRole("Hub Supervisor", "Multipurpose Centre Super
   return c.json({ id, status: "Draft" });
 });
 
-form2Routes.delete("/:id", requireRole("Hub Supervisor", "Multipurpose Centre Supervisor", "Haat Bazaar Supervisor", "VDVK Facility Supervisor"), async (c) => {
+form2Routes.delete("/:id", requireRole("Hub Supervisor", "MPC Supervisor", "Haat Bazaar Supervisor", "VDVK Facility Supervisor"), async (c) => {
   const { id } = c.req.param();
   const user = c.get("user");
   const [r] = await db.select().from(f2Header).where(eq(f2Header.id, id)).limit(1);
@@ -187,7 +187,7 @@ form2Routes.delete("/:id", requireRole("Hub Supervisor", "Multipurpose Centre Su
   return c.json({ id, deleted: true });
 });
 
-form2Routes.patch("/:id/reopen", requireRole("Hub Supervisor", "Multipurpose Centre Supervisor", "Haat Bazaar Supervisor", "VDVK Facility Supervisor"), async (c) => {
+form2Routes.patch("/:id/reopen", requireRole("Hub Supervisor", "MPC Supervisor", "Haat Bazaar Supervisor", "VDVK Facility Supervisor"), async (c) => {
   const { id } = c.req.param();
   const user = c.get("user");
   const [r] = await db.select().from(f2Header).where(eq(f2Header.id, id)).limit(1);

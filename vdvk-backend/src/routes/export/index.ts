@@ -66,7 +66,7 @@ exportRoutes.get("/stock.csv", async (c) => {
 });
 
 // ─── AUDIT TRAIL EXPORT (officer/admin only) ─────────────────────────────
-exportRoutes.get("/audit.csv", requireRole("PO", "DPM", "Admin", "MDA"), async (c) => {
+exportRoutes.get("/audit.csv", requireRole("PO", "DPM", "MDA"), async (c) => {
   const { transactionId, formType, action } = c.req.query();
   const conds = [];
   if (transactionId) conds.push(eq(auditTrail.transactionId, transactionId));

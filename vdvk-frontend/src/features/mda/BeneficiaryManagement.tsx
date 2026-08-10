@@ -345,7 +345,7 @@ export function BeneficiaryManagement() {
   /* --- forms --- */
 
   const addForm = useForm<BeneficiaryForm>({
-    resolver: zodResolver(beneficiarySchema),
+    resolver: zodResolver(beneficiarySchema) as any,
     defaultValues: {
       name: "",
       age: undefined,

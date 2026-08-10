@@ -273,7 +273,7 @@ export function MachineryManagement() {
   /* --- forms --- */
 
   const machineryForm = useForm<MachineryForm>({
-    resolver: zodResolver(machinerySchema),
+    resolver: zodResolver(machinerySchema) as any,
     defaultValues: {
       name: "",
       commodityMapping: [],

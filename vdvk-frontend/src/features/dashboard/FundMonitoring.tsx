@@ -112,7 +112,7 @@ export function FundMonitoring() {
   return (
     <div className="space-y-10">
       <div>
-        <h1 className="heading-anton text-5xl tracking-tight text-charcoal">
+        <h1 className="font-display text-5xl tracking-tight text-charcoal">
           FUND MONITORING
         </h1>
         <p className="text-charcoal/50 text-sm font-medium uppercase tracking-[0.3em] mt-2">
@@ -128,7 +128,7 @@ export function FundMonitoring() {
             </p>
             <Banknote className="w-5 h-5 text-charcoal/20" />
           </div>
-          <h3 className="heading-anton text-4xl mb-4 text-charcoal">
+          <h3 className="font-display text-4xl mb-4 text-charcoal">
             {formatLakhs(totalSanctioned)}
           </h3>
           <div className="h-1 w-full bg-gray-100">
@@ -143,7 +143,7 @@ export function FundMonitoring() {
             </p>
             <Send className="w-5 h-5 text-golden" />
           </div>
-          <h3 className="heading-anton text-4xl mb-4 text-charcoal">
+          <h3 className="font-display text-4xl mb-4 text-charcoal">
             {formatLakhs(totalReleased)}
           </h3>
           <div className="h-1 w-full bg-gray-100">
@@ -164,7 +164,7 @@ export function FundMonitoring() {
             </p>
             <TrendingUp className="w-5 h-5 text-sage" />
           </div>
-          <h3 className="heading-anton text-4xl mb-4 text-charcoal">
+          <h3 className="font-display text-4xl mb-4 text-charcoal">
             {formatLakhs(totalExpenditure)}
           </h3>
           <div className="h-1 w-full bg-gray-100">
@@ -185,7 +185,7 @@ export function FundMonitoring() {
             </p>
             <Wallet className="w-5 h-5 text-golden" />
           </div>
-          <h3 className="heading-anton text-4xl mb-4 text-golden">
+          <h3 className="font-display text-4xl mb-4 text-golden">
             {formatLakhs(balance)}
           </h3>
           <div className="h-1 w-full bg-white/10">
@@ -202,7 +202,7 @@ export function FundMonitoring() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
         <div className="bg-white p-8 border border-charcoal/5 shadow-sm">
-          <h4 className="heading-anton text-2xl mb-8 border-b-2 border-golden pb-2 inline-block">
+          <h4 className="font-display text-2xl mb-8 border-b-2 border-golden pb-2 inline-block">
             Fund Summary
           </h4>
           <div className="space-y-6">
@@ -237,7 +237,7 @@ export function FundMonitoring() {
         </div>
 
         <div className="dark-panel space-y-6">
-          <h4 className="heading-anton text-2xl text-golden">Quick Stats</h4>
+          <h4 className="font-display text-2xl text-golden">Quick Stats</h4>
           <div className="space-y-8">
             <div>
               <div className="flex justify-between mb-2 text-[10px] font-black uppercase tracking-widest text-white/40">
@@ -297,7 +297,7 @@ export function FundMonitoring() {
       ) : (
         <div className="bg-white border border-charcoal/5 shadow-sm overflow-hidden">
           <div className="bg-charcoal px-8 py-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <h4 className="heading-anton text-2xl tracking-tight text-golden">
+            <h4 className="font-display text-2xl tracking-tight text-golden">
               VDVK-wise Fund Status
             </h4>
           </div>

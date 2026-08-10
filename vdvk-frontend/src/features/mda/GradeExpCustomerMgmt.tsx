@@ -716,7 +716,7 @@ export function GradeExpCustomerMgmt() {
 
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b-2 border-charcoal pb-8">
         <div>
-          <h1 className="section-heading text-6xl leading-[0.9] tracking-tighter text-charcoal">MDA MASTERS</h1>
+          <h1 className="section-heading text-6xl leading-[0.9] tracking-tighter text-charcoal">ADMIN MASTERS</h1>
           <p className="text-charcoal/50 text-xs font-black uppercase tracking-[0.3em] mt-4">
             Grade, Expenditure & Customer Management
           </p>

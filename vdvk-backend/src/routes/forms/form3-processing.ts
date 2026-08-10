@@ -47,7 +47,7 @@ function calcItem(item: any) {
 }
 
 // CREATE
-form3Routes.post("/", requireRole("Hub Supervisor", "Multipurpose Centre Supervisor", "Haat Bazaar Supervisor", "VDVK Facility Supervisor"), async (c) => {
+form3Routes.post("/", requireRole("Hub Supervisor", "MPC Supervisor", "Haat Bazaar Supervisor", "VDVK Facility Supervisor"), async (c) => {
   const body = formSchema.parse(await c.req.json());
   const user = c.get("user");
   const id = uuid(); const txnNo = `${txnPrefix}-${Date.now().toString(36).toUpperCase()}`;
@@ -81,7 +81,7 @@ form3Routes.post("/", requireRole("Hub Supervisor", "Multipurpose Centre Supervi
 });
 
 // SUBMIT
-form3Routes.patch("/:id/submit", requireRole("Hub Supervisor", "Multipurpose Centre Supervisor", "Haat Bazaar Supervisor", "VDVK Facility Supervisor"), async (c) => {
+form3Routes.patch("/:id/submit", requireRole("Hub Supervisor", "MPC Supervisor", "Haat Bazaar Supervisor", "VDVK Facility Supervisor"), async (c) => {
   const { id } = c.req.param();
   const [r] = await db.select().from(f3Header).where(eq(f3Header.id, id)).limit(1);
   if (!r) return c.json({ error: "Not found" }, 404);
@@ -185,7 +185,7 @@ form3Routes.get("/:id", async (c) => {
 });
 
 // UPDATE DRAFT
-form3Routes.put("/:id", requireRole("Hub Supervisor", "Multipurpose Centre Supervisor", "Haat Bazaar Supervisor", "VDVK Facility Supervisor"), async (c) => {
+form3Routes.put("/:id", requireRole("Hub Supervisor", "MPC Supervisor", "Haat Bazaar Supervisor", "VDVK Facility Supervisor"), async (c) => {
   const { id } = c.req.param();
   const body = formSchema.partial().parse(await c.req.json());
   const [r] = await db.select().from(f3Header).where(eq(f3Header.id, id)).limit(1);
@@ -224,7 +224,7 @@ form3Routes.put("/:id", requireRole("Hub Supervisor", "Multipurpose Centre Super
   return c.json({ id, status: "Draft" });
 });
 
-form3Routes.delete("/:id", requireRole("Hub Supervisor", "Multipurpose Centre Supervisor", "Haat Bazaar Supervisor", "VDVK Facility Supervisor"), async (c) => {
+form3Routes.delete("/:id", requireRole("Hub Supervisor", "MPC Supervisor", "Haat Bazaar Supervisor", "VDVK Facility Supervisor"), async (c) => {
   const { id } = c.req.param();
   const user = c.get("user");
   const [r] = await db.select().from(f3Header).where(eq(f3Header.id, id)).limit(1);
@@ -238,7 +238,7 @@ form3Routes.delete("/:id", requireRole("Hub Supervisor", "Multipurpose Centre Su
   return c.json({ id, deleted: true });
 });
 
-form3Routes.patch("/:id/reopen", requireRole("Hub Supervisor", "Multipurpose Centre Supervisor", "Haat Bazaar Supervisor", "VDVK Facility Supervisor"), async (c) => {
+form3Routes.patch("/:id/reopen", requireRole("Hub Supervisor", "MPC Supervisor", "Haat Bazaar Supervisor", "VDVK Facility Supervisor"), async (c) => {
   const { id } = c.req.param();
   const user = c.get("user");
   const [r] = await db.select().from(f3Header).where(eq(f3Header.id, id)).limit(1);

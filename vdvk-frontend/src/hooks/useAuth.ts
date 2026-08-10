@@ -11,8 +11,8 @@ export function useAuth() {
   };
 
   const isManagement = hasRole(ROLES.PO, ROLES.APD, ROLES.DPM);
-  const isAdmin = hasRole(ROLES.Admin);
-  const isMDA = hasRole(ROLES.MDA) && !isAdmin;
+  const isAdmin = hasRole(ROLES.MDA);
+  const isMDA = isAdmin;
   const isAPM = hasRole(ROLES.APM);
   const isFieldUser = hasRole(
     ROLES.CC,

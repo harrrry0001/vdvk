@@ -268,7 +268,7 @@ export function HubFacilityPerformance() {
 
   const { data: machinerySummary, isLoading: machineryLoading, isError: machineryError, refetch: machineryRefetch } = useQuery({
     queryKey: ["dashboard", "machinery-summary"],
-    queryFn: () => dashboardApi.getMachinerySummary().then((r) => r.data),
+    queryFn: () => dashboardApi.getMachinerySummary().then((r) => (Array.isArray(r.data) ? r.data : []) as { status: string; count: number }[]),
   });
 
   const facilities = useMemo(() => {

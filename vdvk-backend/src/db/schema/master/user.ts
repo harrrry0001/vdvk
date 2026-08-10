@@ -2,8 +2,8 @@ import { boolean, index, integer, pgTable, serial, text, varchar } from "drizzle
 
 // ─── USER ROLES ENUM ──────────────────────────────────────────────────────
 export const USER_ROLES = [
-  "PO", "APD", "DPM", "APM", "MDA", "Admin",
-  "CC", "Hub Supervisor", "Multipurpose Centre Supervisor",
+  "PO", "APD", "DPM", "APM", "MDA",
+  "CC", "Hub Supervisor", "MPC Supervisor",
   "Haat Bazaar Supervisor", "VDVK Head", "VDVK Facility Supervisor",
 ] as const;
 export type UserRole = (typeof USER_ROLES)[number];

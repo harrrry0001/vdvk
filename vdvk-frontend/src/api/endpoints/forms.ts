@@ -35,6 +35,6 @@ export const formsApi = {
       headers: { "Content-Type": "multipart/form-data" },
     }),
 
-  bulkRegisterBeneficiaries: (data: unknown[]) =>
-    client.post("/forms/form6/bulk", { beneficiaries: data }),
+  bulkRegisterBeneficiaries: (data: { vdvkCode: string; beneficiaries: unknown[] }) =>
+    client.post("/forms/form6/bulk", data),
 };

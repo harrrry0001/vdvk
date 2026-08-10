@@ -73,15 +73,23 @@ export interface MandalPerformance {
 
 export interface RequestItem {
   id: string;
+  requestId?: string;
+  formKey?: string;
+  formLabel?: string;
   formType: string;
   submittedBy: string;
-  submittedByRole: string;
-  facility: string;
+  submittedByRole?: string;
+  facility?: string;
+  locationName?: string;
+  mandal?: string;
   amount?: number;
-  daysPending: number;
+  daysPending?: number;
   status: FormStatus;
-  with: string;
-  dateSubmitted: string;
+  with?: string;
+  pendingWith?: string;
+  remarks?: string;
+  dateSubmitted?: string;
+  createdAt?: string;
   requestType?: string;
   priority?: string;
   description?: string;

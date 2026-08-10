@@ -61,7 +61,7 @@ function errorMessage(e: unknown): string {
 }
 
 // ─── COMMODITIES ─────────────────────────────────────────────────────────
-importRoutes.post("/commodities", requireRole("Admin", "MDA"), async (c) => {
+importRoutes.post("/commodities", requireRole("MDA"), async (c) => {
   const user = c.get("user");
   const { file, headers, rows } = await csvFromReq(c);
   const now = new Date().toISOString();
@@ -94,7 +94,7 @@ importRoutes.post("/commodities", requireRole("Admin", "MDA"), async (c) => {
 });
 
 // ─── GRADES ──────────────────────────────────────────────────────────────
-importRoutes.post("/grades", requireRole("Admin", "MDA"), async (c) => {
+importRoutes.post("/grades", requireRole("MDA"), async (c) => {
   const user = c.get("user");
   const { file, headers, rows } = await csvFromReq(c);
   const now = new Date().toISOString();
@@ -131,7 +131,7 @@ importRoutes.post("/grades", requireRole("Admin", "MDA"), async (c) => {
 });
 
 // ─── VDVKS ───────────────────────────────────────────────────────────────
-importRoutes.post("/vdvks", requireRole("Admin", "MDA"), async (c) => {
+importRoutes.post("/vdvks", requireRole("MDA"), async (c) => {
   const user = c.get("user");
   const { file, headers, rows } = await csvFromReq(c);
   const now = new Date().toISOString();
@@ -173,7 +173,7 @@ importRoutes.post("/vdvks", requireRole("Admin", "MDA"), async (c) => {
 });
 
 // ─── USERS ───────────────────────────────────────────────────────────────
-importRoutes.post("/users", requireRole("Admin", "MDA"), async (c) => {
+importRoutes.post("/users", requireRole("MDA"), async (c) => {
   const user = c.get("user");
   const { file, headers, rows } = await csvFromReq(c);
   const now = new Date().toISOString();
@@ -221,7 +221,7 @@ importRoutes.post("/users", requireRole("Admin", "MDA"), async (c) => {
 });
 
 // ─── MIGRATION LOG VIEWER ────────────────────────────────────────────────
-importRoutes.get("/logs", requireRole("PO", "DPM", "Admin", "MDA"), async (c) => {
+importRoutes.get("/logs", requireRole("PO", "DPM", "MDA"), async (c) => {
   const { entity, page = "1", limit = "50" } = c.req.query();
   const conds = entity ? [eq(migrationLog.entity, entity as any)] : [];
   const rows = await db.select({

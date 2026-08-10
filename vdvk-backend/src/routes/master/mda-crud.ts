@@ -60,7 +60,7 @@ mdaRoutes.get("/stock/summary", async (c) => {
 });
 
 // ─── STOCK MOVEMENT LOG VIEWER (append-only history) ─────────────────────
-mdaRoutes.get("/stock/movements", requireRole("PO", "DPM", "Admin", "MDA"), async (c) => {
+mdaRoutes.get("/stock/movements", requireRole("PO", "DPM", "MDA"), async (c) => {
   const { vdvkCode, commodityCode, formType, performedBy, page = "1", limit = "50" } = c.req.query();
   const conds = [];
   if (vdvkCode) conds.push(eq(stockLedger.vdvkCode, vdvkCode));
@@ -116,7 +116,7 @@ mdaRoutes.get("/rates/prefill", async (c) => {
   return c.json(rate || null);
 });
 
-mdaRoutes.post("/rates", requireRole("Admin", "MDA"), async (c) => {
+mdaRoutes.post("/rates", requireRole("MDA"), async (c) => {
   const body = await c.req.json();
   await db.insert(commodityRates).values({
     commodityCode: body.commodityCode, gradeCode: body.gradeCode,
@@ -127,7 +127,7 @@ mdaRoutes.post("/rates", requireRole("Admin", "MDA"), async (c) => {
 });
 
 // Rate revision: close old rate + insert new
-mdaRoutes.put("/rates/:id/revise", requireRole("Admin", "MDA"), async (c) => {
+mdaRoutes.put("/rates/:id/revise", requireRole("MDA"), async (c) => {
   const { id } = c.req.param();
   const body = await c.req.json<{ ratePerKg?: number; ratePerPiece?: number }>();
   const [oldRate] = await db.select().from(commodityRates).where(eq(commodityRates.id, Number(id))).limit(1);
@@ -172,7 +172,7 @@ function crudRoutes(entity: string, table: any, pk = "code") {
     return c.json(rows);
   });
 
-  router.post("/", requireRole("Admin", "MDA"), async (c) => {
+  router.post("/", requireRole("MDA"), async (c) => {
     const body = await c.req.json();
     if (!body[pk]) body[pk] = `${entity}-${uuid().slice(0, 8).toUpperCase()}`;
     const defaults = CRUD_DEFAULTS[entity] || {};
@@ -183,14 +183,14 @@ function crudRoutes(entity: string, table: any, pk = "code") {
     return c.json({ [pk]: body[pk] }, 201);
   });
 
-  router.put(`/:${pk}`, requireRole("Admin", "MDA"), async (c) => {
+  router.put(`/:${pk}`, requireRole("MDA"), async (c) => {
     const val = c.req.param(pk);
     const body = await c.req.json();
     await db.update(table).set({ ...body, updatedAt: new Date().toISOString() }).where(eq(table[pk], val));
     return c.json({ updated: true });
   });
 
-  router.delete(`/:${pk}`, requireRole("Admin", "MDA"), async (c) => {
+  router.delete(`/:${pk}`, requireRole("MDA"), async (c) => {
     const val = c.req.param(pk);
     await db.update(table).set({ status: "Inactive" } as any).where(eq(table[pk], val));
     return c.json({ deactivated: true });
@@ -209,7 +209,7 @@ mdaRoutes.route("/suppliers", crudRoutes("SUP", suppliers));
 // ═══════════════════════════════════════════════════════════════════════════
 // 4. USER MANAGEMENT (Admin/MDA)
 // ═══════════════════════════════════════════════════════════════════════════
-mdaRoutes.get("/users", requireRole("PO", "APD", "DPM", "Admin", "MDA"), async (c) => {
+mdaRoutes.get("/users", requireRole("PO", "APD", "DPM", "MDA"), async (c) => {
   const rows = await db.select().from(users).orderBy(desc(users.createdAt));
   const usersWithRoles = await Promise.all(rows.map(async (u) => {
     const roles = await db.select().from(userRoles).where(eq(userRoles.userId, u.id));
@@ -218,7 +218,7 @@ mdaRoutes.get("/users", requireRole("PO", "APD", "DPM", "Admin", "MDA"), async (
   return c.json(usersWithRoles);
 });
 
-mdaRoutes.get("/users/:id", requireRole("PO", "APD", "DPM", "Admin", "MDA"), async (c) => {
+mdaRoutes.get("/users/:id", requireRole("PO", "APD", "DPM", "MDA"), async (c) => {
   const { id } = c.req.param();
   const [u] = await db.select().from(users).where(eq(users.id, id)).limit(1);
   if (!u) return c.json({ error: "Not found" }, 404);
@@ -230,7 +230,7 @@ mdaRoutes.get("/users/:id", requireRole("PO", "APD", "DPM", "Admin", "MDA"), asy
   return c.json({ ...u, passwordHash: undefined, roles, transferHistory });
 });
 
-mdaRoutes.post("/users", requireRole("Admin", "MDA"), async (c) => {
+mdaRoutes.post("/users", requireRole("MDA"), async (c) => {
   const body = await c.req.json<{ name: string; username: string; password: string; designation: string; mandal?: string; vdvkCode?: string; facilityCode?: string; roles: string[] }>();
   const pwdHash = await bcrypt.hash(body.password, 10);
   const id = `USER-${uuid().slice(0, 8).toUpperCase()}`;
@@ -251,13 +251,13 @@ mdaRoutes.post("/users", requireRole("Admin", "MDA"), async (c) => {
   return c.json({ id }, 201);
 });
 
-mdaRoutes.patch("/users/:id/deactivate", requireRole("Admin", "MDA"), async (c) => {
+mdaRoutes.patch("/users/:id/deactivate", requireRole("MDA"), async (c) => {
   const { id } = c.req.param();
   await db.update(users).set({ status: "Inactive", updatedAt: new Date().toISOString() }).where(eq(users.id, id));
   return c.json({ deactivated: true });
 });
 
-mdaRoutes.patch("/users/:id/reset-password", requireRole("Admin", "MDA"), async (c) => {
+mdaRoutes.patch("/users/:id/reset-password", requireRole("MDA"), async (c) => {
   const { id } = c.req.param();
   const { newPassword } = await c.req.json<{ newPassword: string }>();
   const pwdHash = await bcrypt.hash(newPassword, 10);
@@ -265,7 +265,7 @@ mdaRoutes.patch("/users/:id/reset-password", requireRole("Admin", "MDA"), async 
   return c.json({ reset: true });
 });
 
-mdaRoutes.patch("/users/:id/transfer", requireRole("Admin", "MDA"), async (c) => {
+mdaRoutes.patch("/users/:id/transfer", requireRole("MDA"), async (c) => {
   const { id } = c.req.param();
   const { mandal, vdvkCode, facilityCode, reason } = await c.req.json();
   const user = c.get("user");
@@ -300,7 +300,7 @@ mdaRoutes.patch("/users/:id/transfer", requireRole("Admin", "MDA"), async (c) =>
 // ═══════════════════════════════════════════════════════════════════════════
 // 5. AUDIT TRAIL VIEWER
 // ═══════════════════════════════════════════════════════════════════════════
-mdaRoutes.get("/audit-trail", requireRole("PO", "DPM", "Admin", "MDA"), async (c) => {
+mdaRoutes.get("/audit-trail", requireRole("PO", "DPM", "MDA"), async (c) => {
   const { transactionId, formType, action, page = "1", limit = "35" } = c.req.query();
   const conds = [];
   if (transactionId) conds.push(eq(auditTrail.transactionId, transactionId));
@@ -321,7 +321,7 @@ mdaRoutes.get("/audit-trail", requireRole("PO", "DPM", "Admin", "MDA"), async (c
 });
 
 // ─── REJECTED RECORDS VIEWER ──────────────────────────────────────────────
-mdaRoutes.get("/rejected-records", requireRole("PO", "DPM", "Admin", "MDA"), async (c) => {
+mdaRoutes.get("/rejected-records", requireRole("PO", "DPM", "MDA"), async (c) => {
   const { formType, page = "1", limit = "50" } = c.req.query();
   const cond = formType ? [eq(rejectedRecords.formType, formType as any)] : [];
   const rows = await db.select({
@@ -334,7 +334,7 @@ mdaRoutes.get("/rejected-records", requireRole("PO", "DPM", "Admin", "MDA"), asy
     .limit(Number(limit)).offset((Number(page) - 1) * Number(limit));
   return c.json(rows);
 });
-mdaRoutes.post("/machinery/:id/transfer", requireRole("Admin", "MDA"), async (c) => {
+mdaRoutes.post("/machinery/:id/transfer", requireRole("MDA"), async (c) => {
   const { id } = c.req.param();
   const body = await c.req.json<{ toFacilityCode: string; toFacilityType?: string; reason?: string; remarks?: string }>();
   const [m] = await db.select().from(machinery).where(eq(machinery.id, id)).limit(1);
@@ -355,7 +355,7 @@ mdaRoutes.post("/machinery/:id/transfer", requireRole("Admin", "MDA"), async (c)
   return c.json({ transferred: true, status: "In Transit" });
 });
 
-mdaRoutes.patch("/machinery/:id/complete-transfer", requireRole("Admin", "MDA"), async (c) => {
+mdaRoutes.patch("/machinery/:id/complete-transfer", requireRole("MDA"), async (c) => {
   const { id } = c.req.param();
   const body = await c.req.json<{ dateReceived?: string; condition?: string; remarks?: string }>();
 
@@ -408,7 +408,7 @@ mdaRoutes.get("/facilities/:code/commodities", async (c) => {
   return c.json(rows);
 });
 
-mdaRoutes.post("/facilities/:code/commodities", requireRole("Admin", "MDA"), async (c) => {
+mdaRoutes.post("/facilities/:code/commodities", requireRole("MDA"), async (c) => {
   const { code } = c.req.param();
   const { commodityCodes } = await c.req.json<{ commodityCodes: string[] }>();
   await db.delete(facilityCommodities).where(eq(facilityCommodities.facilityCode, code));
@@ -425,7 +425,7 @@ mdaRoutes.get("/facilities/:code/vdvks", async (c) => {
   return c.json(rows);
 });
 
-mdaRoutes.post("/facilities/:code/vdvks", requireRole("Admin", "MDA"), async (c) => {
+mdaRoutes.post("/facilities/:code/vdvks", requireRole("MDA"), async (c) => {
   const { code } = c.req.param();
   const { vdvkCodes } = await c.req.json<{ vdvkCodes: string[] }>();
   await db.delete(facilityVdvkMapping).where(eq(facilityVdvkMapping.facilityCode, code));
@@ -442,7 +442,7 @@ mdaRoutes.get("/facilities/:code/supervisors", async (c) => {
   return c.json(rows);
 });
 
-mdaRoutes.post("/facilities/:code/supervisors", requireRole("Admin", "MDA"), async (c) => {
+mdaRoutes.post("/facilities/:code/supervisors", requireRole("MDA"), async (c) => {
   const { code } = c.req.param();
   const body = await c.req.json<{ supervisorUserId: string; supervisorNameSnapshot: string; assignedFrom?: string; assignedTo?: string }>();
   const today = new Date().toISOString().slice(0, 10);

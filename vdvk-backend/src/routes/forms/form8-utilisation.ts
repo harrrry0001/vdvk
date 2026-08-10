@@ -38,7 +38,7 @@ function calcYield(item: any) {
   };
 }
 
-form8Routes.post("/", requireRole("Hub Supervisor", "Multipurpose Centre Supervisor", "Haat Bazaar Supervisor", "VDVK Facility Supervisor"), async (c) => {
+form8Routes.post("/", requireRole("Hub Supervisor", "MPC Supervisor", "Haat Bazaar Supervisor", "VDVK Facility Supervisor"), async (c) => {
   const body = formSchema.parse(await c.req.json());
   const user = c.get("user");
   const id = uuid(); const txnNo = `${txnPrefix}-${Date.now().toString(36).toUpperCase()}`;
@@ -57,7 +57,7 @@ form8Routes.post("/", requireRole("Hub Supervisor", "Multipurpose Centre Supervi
   return c.json({ id, txnNo, status: "Draft" }, 201);
 });
 
-form8Routes.patch("/:id/submit", requireRole("Hub Supervisor", "Multipurpose Centre Supervisor", "Haat Bazaar Supervisor", "VDVK Facility Supervisor"), async (c) => {
+form8Routes.patch("/:id/submit", requireRole("Hub Supervisor", "MPC Supervisor", "Haat Bazaar Supervisor", "VDVK Facility Supervisor"), async (c) => {
   const { id } = c.req.param();
   const [r] = await db.select().from(f8Header).where(eq(f8Header.id, id)).limit(1);
   if (!r) return c.json({ error: "Not found" }, 404);
@@ -113,7 +113,7 @@ form8Routes.get("/:id", async (c) => {
   return c.json({ ...h, items });
 });
 
-form8Routes.put("/:id", requireRole("Hub Supervisor", "Multipurpose Centre Supervisor", "Haat Bazaar Supervisor", "VDVK Facility Supervisor"), async (c) => {
+form8Routes.put("/:id", requireRole("Hub Supervisor", "MPC Supervisor", "Haat Bazaar Supervisor", "VDVK Facility Supervisor"), async (c) => {
   const { id } = c.req.param();
   const body = formSchema.partial().parse(await c.req.json());
   const [r] = await db.select().from(f8Header).where(eq(f8Header.id, id)).limit(1);
@@ -135,7 +135,7 @@ form8Routes.put("/:id", requireRole("Hub Supervisor", "Multipurpose Centre Super
   return c.json({ id, status: "Draft" });
 });
 
-form8Routes.delete("/:id", requireRole("Hub Supervisor", "Multipurpose Centre Supervisor", "Haat Bazaar Supervisor", "VDVK Facility Supervisor"), async (c) => {
+form8Routes.delete("/:id", requireRole("Hub Supervisor", "MPC Supervisor", "Haat Bazaar Supervisor", "VDVK Facility Supervisor"), async (c) => {
   const { id } = c.req.param();
   const user = c.get("user");
   const [r] = await db.select().from(f8Header).where(eq(f8Header.id, id)).limit(1);
@@ -147,7 +147,7 @@ form8Routes.delete("/:id", requireRole("Hub Supervisor", "Multipurpose Centre Su
   return c.json({ id, deleted: true });
 });
 
-form8Routes.patch("/:id/reopen", requireRole("Hub Supervisor", "Multipurpose Centre Supervisor", "Haat Bazaar Supervisor", "VDVK Facility Supervisor"), async (c) => {
+form8Routes.patch("/:id/reopen", requireRole("Hub Supervisor", "MPC Supervisor", "Haat Bazaar Supervisor", "VDVK Facility Supervisor"), async (c) => {
   const { id } = c.req.param();
   const user = c.get("user");
   const [r] = await db.select().from(f8Header).where(eq(f8Header.id, id)).limit(1);

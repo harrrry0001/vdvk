@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+﻿import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { mdaApi } from "@/api/endpoints/mda";
 import { PageLoading } from "@/components/shared/LoadingSpinner";
@@ -182,11 +182,11 @@ function ReportsView({ search, setSearch }: { search: string; setSearch: (v: str
     <div className="space-y-8 animate-in fade-in duration-300">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="heading-anton text-4xl tracking-tight text-[#171e19]">
+          <h1 className="font-display text-4xl tracking-tight text-[#171e19]">
             Knowledge Repository
           </h1>
           <p className="text-[#171e19]/50 text-sm font-medium uppercase tracking-widest mt-1">
-            Standardized Reporting • Analytics Export
+            Standardized Reporting â€¢ Analytics Export
           </p>
         </div>
         <div className="relative">
@@ -220,7 +220,7 @@ function ReportsView({ search, setSearch }: { search: string; setSearch: (v: str
                 {report.id}
               </span>
             </div>
-            <h3 className="heading-anton text-sm tracking-widest mb-8 text-[#171e19]">
+            <h3 className="font-display text-sm tracking-widest mb-8 text-[#171e19]">
               {report.title}
             </h3>
             <div className="mt-auto flex gap-2">
@@ -282,18 +282,18 @@ function ContactsView({
 
   const mandals = useMemo(() => {
     const m = new Set(filtered.map((u) => u.mandal).filter(Boolean));
-    return Array.from(m).join(", ") || "—";
+    return Array.from(m).join(", ") || "â€”";
   }, [filtered]);
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="heading-anton text-4xl tracking-tight text-[#171e19]">
+          <h1 className="font-display text-4xl tracking-tight text-[#171e19]">
             Field Network
           </h1>
           <p className="text-[#171e19]/50 text-sm font-medium uppercase tracking-widest mt-1">
-            Assigned Mandal Contacts • ITDA Paderu
+            Assigned Mandal Contacts â€¢ ITDA Paderu
           </p>
         </div>
         <div className="flex gap-3">
@@ -378,13 +378,13 @@ function ContactsView({
                   </span>
                 </td>
                 <td className="p-4 text-xs font-medium text-blue-600 data-font">
-                  {user.mobile ? formatMobile(user.mobile) : "—"}
+                  {user.mobile ? formatMobile(user.mobile) : "â€”"}
                 </td>
                 <td className="p-4 text-xs font-medium">
-                  {user.mandal || "—"}
+                  {user.mandal || "â€”"}
                 </td>
                 <td className="p-4 text-xs text-black/50">
-                  {user.assignedArea || "—"}
+                  {user.assignedArea || "â€”"}
                 </td>
                 <td className="p-4">
                   <div className="flex gap-2">
@@ -416,7 +416,7 @@ function ContactsView({
 
       <div className="flex justify-center mt-10">
         <p className="text-[10px] text-black/30 font-bold uppercase tracking-widest">
-          Showing verified field network for Mandal: {mandals} • ₹ 0 Total
+          Showing verified field network for Mandal: {mandals} â€¢ â‚¹ 0 Total
           outstanding allowances
         </p>
       </div>
@@ -486,3 +486,4 @@ export function APMReportsContacts() {
     </div>
   );
 }
+

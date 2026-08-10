@@ -227,7 +227,7 @@ async function seed() {
     { id: "USER-CC2", name: "Community Coordinator 2", uname: "cc2", desig: "CC", role: "CC", mandal: "MND-002", vdvk: "VDK-002" },
     { id: "USER-HUB-SUP", name: "Hub Supervisor", uname: "hubsup", desig: "Hub Supervisor", role: "Hub Supervisor", mandal: "MND-001", facility: "FAC-HUB-001" },
     { id: "USER-HUB-SUP2", name: "Hub Supervisor 2", uname: "hubsup2", desig: "Hub Supervisor", role: "Hub Supervisor", mandal: "MND-002", facility: "FAC-HUB-002" },
-    { id: "USER-MDA", name: "Master Data Admin", uname: "mda", desig: "MDA", role: "MDA", mandal: "MND-001" },
+    { id: "USER-MDA", name: "Admin", uname: "mda", desig: "MDA", role: "MDA", mandal: "MND-001" },
   ];
   for (const u of userData) {
     const cols = ["id", "name", "username", "password_hash", "designation", "mandal", "created_at", "updated_at"];
@@ -260,7 +260,7 @@ async function seed() {
   }
   // Multi-role assignments for supervisor
   await exec("INSERT INTO user_roles (user_id,role,is_primary,assigned_from) VALUES (?,?,FALSE,?)", ["USER-HUB-SUP", "VDVK Facility Supervisor", "2025-04-01"]);
-  await exec("INSERT INTO user_roles (user_id,role,is_primary,assigned_from) VALUES (?,?,FALSE,?)", ["USER-HUB-SUP", "Multipurpose Centre Supervisor", "2025-04-01"]);
+  await exec("INSERT INTO user_roles (user_id,role,is_primary,assigned_from) VALUES (?,?,FALSE,?)", ["USER-HUB-SUP", "MPC Supervisor", "2025-04-01"]);
   await exec("INSERT INTO user_roles (user_id,role,is_primary,assigned_from) VALUES (?,?,FALSE,?)", ["USER-HUB-SUP", "Haat Bazaar Supervisor", "2025-04-01"]);
   console.log(`[10/11] Users(${userData.length + real.realUsers.length}) + Roles [password: Vdvk@2025]`);
 

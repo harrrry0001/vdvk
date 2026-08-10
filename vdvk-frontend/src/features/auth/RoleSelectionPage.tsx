@@ -72,7 +72,7 @@ export function RoleSelectionPage() {
     if (isManagement) {
       setActiveRole(user?.roles?.[0] ?? ROLES.PO);
     } else if (isAdmin) {
-      setActiveRole(ROLES.Admin);
+      setActiveRole(ROLES.MDA);
     } else if (isAPM) {
       setActiveRole(ROLES.APM);
     } else if (isMDA) {
@@ -117,7 +117,7 @@ export function RoleSelectionPage() {
                 </div>
                 <div className="text-left">
                   <p className="font-semibold">
-                    {isManagement ? "District Dashboard" : isAdmin ? "MDA Admin Dashboard" : isAPM ? "APM Dashboard" : "Dashboard"}
+                    {isManagement ? "District Dashboard" : isAdmin ? "Admin Dashboard" : isAPM ? "APM Dashboard" : "Dashboard"}
                   </p>
                   <p className="text-xs text-golden/60 mt-0.5">Full management access</p>
                 </div>

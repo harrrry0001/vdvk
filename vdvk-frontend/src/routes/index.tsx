@@ -104,7 +104,7 @@ export const router = createBrowserRouter([
       {
         path: "mda",
         element: (
-          <RoleGuard roles={["PO", "APD", "DPM", "Admin", "MDA"]}>
+          <RoleGuard roles={["PO", "APD", "DPM", "MDA"]}>
             <MDADashboard />
           </RoleGuard>
         ),
@@ -112,7 +112,7 @@ export const router = createBrowserRouter([
       {
         path: "mda/vdvks",
         element: (
-          <RoleGuard roles={["PO", "APD", "DPM", "Admin", "MDA"]}>
+          <RoleGuard roles={["PO", "APD", "DPM", "MDA"]}>
             <VDVKRegistration />
           </RoleGuard>
         ),
@@ -120,7 +120,7 @@ export const router = createBrowserRouter([
       {
         path: "mda/beneficiaries",
         element: (
-          <RoleGuard roles={["PO", "APD", "DPM", "Admin", "MDA"]}>
+          <RoleGuard roles={["PO", "APD", "DPM", "MDA"]}>
             <BeneficiaryManagement />
           </RoleGuard>
         ),
@@ -128,7 +128,7 @@ export const router = createBrowserRouter([
       {
         path: "mda/machinery",
         element: (
-          <RoleGuard roles={["PO", "APD", "DPM", "Admin", "MDA"]}>
+          <RoleGuard roles={["PO", "APD", "DPM", "MDA"]}>
             <MachineryManagement />
           </RoleGuard>
         ),
@@ -136,7 +136,7 @@ export const router = createBrowserRouter([
       {
         path: "mda/facilities",
         element: (
-          <RoleGuard roles={["PO", "APD", "DPM", "Admin", "MDA"]}>
+          <RoleGuard roles={["PO", "APD", "DPM", "MDA"]}>
             <FacilityRegistration />
           </RoleGuard>
         ),
@@ -144,7 +144,7 @@ export const router = createBrowserRouter([
       {
         path: "mda/commodities",
         element: (
-          <RoleGuard roles={["PO", "APD", "DPM", "Admin", "MDA"]}>
+          <RoleGuard roles={["PO", "APD", "DPM", "MDA"]}>
             <CommodityRateManagement />
           </RoleGuard>
         ),
@@ -152,7 +152,7 @@ export const router = createBrowserRouter([
       {
         path: "mda/rates",
         element: (
-          <RoleGuard roles={["PO", "APD", "DPM", "Admin", "MDA"]}>
+          <RoleGuard roles={["PO", "APD", "DPM", "MDA"]}>
             <RatesManagement />
           </RoleGuard>
         ),
@@ -160,7 +160,7 @@ export const router = createBrowserRouter([
       {
         path: "mda/grades",
         element: (
-          <RoleGuard roles={["PO", "APD", "DPM", "Admin", "MDA"]}>
+          <RoleGuard roles={["PO", "APD", "DPM", "MDA"]}>
             <GradeExpCustomerMgmt />
           </RoleGuard>
         ),
@@ -168,7 +168,7 @@ export const router = createBrowserRouter([
       {
         path: "mda/schemes",
         element: (
-          <RoleGuard roles={["PO", "APD", "DPM", "Admin", "MDA"]}>
+          <RoleGuard roles={["PO", "APD", "DPM", "MDA"]}>
             <SchemeFacilityMaster />
           </RoleGuard>
         ),
@@ -176,7 +176,7 @@ export const router = createBrowserRouter([
       {
         path: "mda/users",
         element: (
-          <RoleGuard roles={["PO", "APD", "DPM", "Admin", "MDA"]}>
+          <RoleGuard roles={["PO", "APD", "DPM", "MDA"]}>
             <UserManagement />
           </RoleGuard>
         ),
@@ -184,7 +184,7 @@ export const router = createBrowserRouter([
       {
         path: "mda/data-correction",
         element: (
-          <RoleGuard roles={["PO", "APD", "DPM", "Admin", "MDA"]}>
+          <RoleGuard roles={["PO", "APD", "DPM", "MDA"]}>
             <DataCorrection />
           </RoleGuard>
         ),

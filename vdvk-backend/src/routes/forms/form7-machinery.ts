@@ -30,7 +30,7 @@ const formSchema = z.object({
 });
 
 // CREATE (Admin/MDA)
-form7Routes.post("/", requireRole("Admin", "MDA"), async (c) => {
+form7Routes.post("/", requireRole("MDA"), async (c) => {
   const body = formSchema.parse(await c.req.json());
   const user = c.get("user");
 
@@ -61,7 +61,7 @@ form7Routes.post("/", requireRole("Admin", "MDA"), async (c) => {
 });
 
 // SUBMIT
-form7Routes.patch("/:id/submit", requireRole("Admin", "MDA"), async (c) => {
+form7Routes.patch("/:id/submit", requireRole("MDA"), async (c) => {
   const { id } = c.req.param();
   const [r] = await db.select().from(machTable).where(eq(machTable.id, id)).limit(1);
   if (!r) return c.json({ error: "Not found" }, 404);
@@ -104,7 +104,7 @@ form7Routes.patch("/:id/approve", requireRole("DPM"), async (c) => {
   return c.json({ id, status: approved ? "Approved" : "Rejected" });
 });
 
-form7Routes.patch("/:id/reopen", requireRole("Admin", "MDA"), async (c) => {
+form7Routes.patch("/:id/reopen", requireRole("MDA"), async (c) => {
   const { id } = c.req.param();
   const user = c.get("user");
   const [m] = await db.select().from(machTable).where(eq(machTable.id, id)).limit(1);
@@ -141,7 +141,7 @@ form7Routes.get("/:id", async (c) => {
 });
 
 // UPDATE DRAFT
-form7Routes.put("/:id", requireRole("Admin", "MDA"), async (c) => {
+form7Routes.put("/:id", requireRole("MDA"), async (c) => {
   const { id } = c.req.param();
   const body = itemSchema.partial().parse(await c.req.json());
   const [r] = await db.select().from(machTable).where(eq(machTable.id, id)).limit(1);
