@@ -11,7 +11,7 @@ export default {
 // Node.js server entry (for direct execution)
 if (process.env.NODE_ENV !== "test") {
   const { serve } = await import("@hono/node-server");
-  serve(app, (info) => {
+  serve({ fetch: app.fetch, port }, (info) => {
     console.log(`VDVK MIS Backend running on http://localhost:${info.port}`);
   });
 }
