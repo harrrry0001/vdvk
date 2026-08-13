@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { useSidebarStore } from "@/stores/sidebarStore";
 import { useAuth } from "@/hooks/useAuth";
-import { CommodityCollectionChart, OperationalTrendChart } from "@/components/shared/Charts";
+import { CommodityCollectionChart, OperationalTrendChart, GradeCollectionChart, DonutChart } from "@/components/shared/Charts";
 
 const timeFilters = ["Today", "Week", "Month", "Quarter", "Year", "Custom"];
 
@@ -62,9 +62,9 @@ interface VdvkRankingRow {
   mandal: string;
   collectionCount: number;
   processingCount: number;
-  sales: number;
+  revenue: number;
+  amountSanctioned: number;
   amountReleased: number;
-  status: string;
 }
 
 export function DistrictOverview() {
@@ -106,6 +106,24 @@ export function DistrictOverview() {
   const { data: mandalPerf, isLoading: mandalLoading } = useQuery({
     queryKey: ["dashboard", "mandal-performance"],
     queryFn: () => dashboardApi.getMandalPerformance().then((r) => r.data ?? []),
+    enabled: canViewFull,
+  });
+
+  const { data: gradeData, isLoading: gradeLoading } = useQuery({
+    queryKey: ["dashboard", "commodity-grade", activeFilter],
+    queryFn: () => dashboardApi.getCommodityGrade(periodRange(activeFilter)).then((r) => r.data ?? []),
+    enabled: canViewFull,
+  });
+
+  const { data: productTypeData, isLoading: productTypeLoading } = useQuery({
+    queryKey: ["dashboard", "sales-product-type", activeFilter],
+    queryFn: () => dashboardApi.getSalesProductType(periodRange(activeFilter)).then((r) => r.data ?? []),
+    enabled: canViewFull,
+  });
+
+  const { data: customerData, isLoading: customerLoading } = useQuery({
+    queryKey: ["dashboard", "top-customers", activeFilter],
+    queryFn: () => dashboardApi.getTopCustomers({ ...periodRange(activeFilter), limit: 8 }).then((r) => r.data ?? []),
     enabled: canViewFull,
   });
 
@@ -175,9 +193,9 @@ export function DistrictOverview() {
         mandal: item.mandal,
         collectionCount: item.collectionCount ?? 0,
         processingCount: item.processingCount ?? 0,
-        sales: 0,
-        amountReleased: item.revenue ?? 0,
-        status: "Stable",
+        revenue: item.revenue ?? 0,
+        amountSanctioned: item.amountSanctioned ?? 0,
+        amountReleased: item.amountReleased ?? 0,
       }))
     : [];
 
@@ -270,7 +288,7 @@ export function DistrictOverview() {
       cell: ({ getValue }) => <span className="font-mono text-xs font-medium">{getValue<number>()}</span>,
     },
     {
-      accessorKey: "amountReleased",
+      accessorKey: "revenue",
       header: "Revenue",
       cell: ({ getValue }) => <span className="font-mono text-xs font-semibold text-emerald-600">Rs {Number(getValue()).toLocaleString()}</span>,
     },
@@ -374,6 +392,69 @@ export function DistrictOverview() {
         </div>
       </div>
 
+      {/* Grade-wise + Raw/Processed + Top Customers */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-100 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-display text-xl text-charcoal tracking-wide">Grade-wise Collection</h3>
+            <span className="text-[10px] font-black text-charcoal uppercase bg-sage px-3 py-1">By Commodity</span>
+          </div>
+          {gradeLoading ? (
+            <div className="h-64 flex items-center justify-center"><PageLoading /></div>
+          ) : (
+            <GradeCollectionChart data={gradeData ?? []} />
+          )}
+        </div>
+
+        <div className="space-y-6">
+          <div className="bg-white rounded-xl border border-gray-100 p-6">
+            <h3 className="font-display text-xl text-charcoal tracking-wide mb-4">Sales by Product Type</h3>
+            {productTypeLoading ? (
+              <div className="h-48 flex items-center justify-center"><PageLoading /></div>
+            ) : (
+              <DonutChart
+                data={(Array.isArray(productTypeData) ? productTypeData : []).map((p) => ({
+                  name: p.productType,
+                  value: p.revenue,
+                  color: String(p.productType).toLowerCase().includes("raw") ? "#e5ca70" : "#171e19",
+                }))}
+                height={230}
+                currency
+              />
+            )}
+          </div>
+
+          <div className="bg-white rounded-xl border border-gray-100 p-6">
+            <h3 className="font-display text-xl text-charcoal tracking-wide mb-4">Top Customers</h3>
+            {customerLoading ? (
+              <div className="h-48 flex items-center justify-center"><PageLoading /></div>
+            ) : (
+              <div className="space-y-3">
+                {(Array.isArray(customerData) ? customerData : []).slice(0, 6).map((c, i) => (
+                  <div key={c.customer} className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={cn(
+                        "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-display shrink-0",
+                        i < 3 ? "bg-golden text-charcoal" : "bg-gray-100 text-gray-500"
+                      )}>
+                        {i + 1}
+                      </span>
+                      <span className="truncate text-charcoal/80">{c.customer}</span>
+                    </div>
+                    <span className="font-mono text-xs font-semibold text-emerald-600">
+                      ₹ {Number(c.revenue ?? 0).toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+                {(Array.isArray(customerData) ? customerData : []).length === 0 && (
+                  <p className="text-center text-sm text-gray-400 py-6">No customer sales yet</p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Mandal Performance Cards */}
       <div>
         <div className="flex items-center justify-between mb-4">
@@ -389,7 +470,10 @@ export function DistrictOverview() {
             {Array.isArray(mandalPerf) && mandalPerf.map((m) => (
               <div key={m.mandal} className="bg-white rounded-xl border border-gray-100 p-6 hover:shadow-sm transition-shadow">
                 <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-display text-lg text-charcoal">{m.mandal}</h4>
+                  <div>
+                    <h4 className="font-display text-lg text-charcoal">{m.mandalName || m.mandal}</h4>
+                    <p className="text-[10px] font-mono text-gray-400 uppercase tracking-wider">{m.mandal}</p>
+                  </div>
                   <span className="text-[10px] font-black text-charcoal bg-golden px-2 py-0.5">
                     {m.vdvks} VDVKs
                   </span>
@@ -421,8 +505,8 @@ export function DistrictOverview() {
       </div>
 
       {/* Commodity Table + Value Split */}
-      <div className={cn("grid gap-6", isCollapsed ? "grid-cols-1 lg:grid-cols-3" : "grid-cols-1 lg:grid-cols-3")}>
-        <div className="lg:col-span-2">
+      <div className="grid gap-6 lg:grid-cols-3 items-stretch">
+        <div className="lg:col-span-2 flex flex-col">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-display text-xl text-charcoal tracking-wide">Commodity Performance Ranking</h3>
             <span className="text-[10px] font-black text-charcoal uppercase bg-golden px-3 py-1">
@@ -430,15 +514,17 @@ export function DistrictOverview() {
             </span>
           </div>
           {commodityRankLoading ? (
-            <div className="bg-white rounded-xl border border-gray-100 p-8"><PageLoading /></div>
+            <div className="bg-white rounded-xl border border-gray-100 p-8 flex-1"><PageLoading /></div>
           ) : (
-            <DataTable columns={rankingColumns} data={commodityRanking.slice(0, 8)} pageSize={8} />
+            <div className="flex-1">
+              <DataTable columns={rankingColumns} data={commodityRanking.slice(0, 8)} pageSize={8} />
+            </div>
           )}
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-6 flex flex-col">
           {/* Value Split */}
-          <div className="dark-panel space-y-4">
+          <div className="dark-panel space-y-4 flex-1">
             <h3 className="font-display text-sm text-golden tracking-wide">Stock Split</h3>
             <div className="space-y-5">
               <div>
@@ -494,35 +580,37 @@ export function DistrictOverview() {
       </div>
 
       {/* VDVK Rankings + Mandal Info */}
-      <div className={cn("grid gap-6", isCollapsed ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1 lg:grid-cols-2")}>
-        <div>
+      <div className="grid gap-6 lg:grid-cols-2 items-stretch">
+        <div className="flex flex-col">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-display text-xl text-charcoal tracking-wide">VDVK Rankings</h3>
             <span className="text-xs text-gray-400 font-mono">{vdvkRankings.length} VDVKs</span>
           </div>
           {vdvkLoading ? (
-            <div className="bg-white rounded-xl border border-gray-100 p-8"><PageLoading /></div>
+            <div className="bg-white rounded-xl border border-gray-100 p-8 flex-1"><PageLoading /></div>
           ) : (
-            <DataTable columns={vdvkColumns} data={vdvkRankings} pageSize={5} />
+            <div className="flex-1 min-h-0">
+              <DataTable columns={vdvkColumns} data={vdvkRankings} pageSize={10} fillHeight />
+            </div>
           )}
         </div>
 
-        <div>
+        <div className="flex flex-col">
           <h3 className="font-display text-xl text-charcoal tracking-wide mb-4">Hub Capacity</h3>
-          <div className="bg-white rounded-xl border border-gray-100 p-6">
+          <div className="bg-white rounded-xl border border-gray-100 p-6 flex-1 flex flex-col min-h-0">
             {hubs.length > 0 ? (
-              <div className="space-y-4">
+              <div className="space-y-1 overflow-y-auto custom-scrollbar pr-1 -mr-1">
                 {hubs.map((hub) => (
-                  <div key={hub.name} className="flex items-center justify-between py-3 border-b border-gray-50 last:border-0 last:pb-0">
-                    <div>
-                      <p className="text-sm font-semibold">{hub.name}</p>
+                  <div key={hub.code || hub.name} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+                    <div className="min-w-0 pr-2">
+                      <p className="text-sm font-semibold truncate">{hub.name}</p>
                       <p className="text-[10px] text-gray-400 uppercase tracking-wider">{hub.vdvks} VDVKs</p>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-28 bg-gray-100 rounded-full h-2 overflow-hidden">
+                    <div className="flex items-center gap-3 shrink-0">
+                      <div className="w-24 bg-gray-100 rounded-full h-2 overflow-hidden">
                         <div className="bg-gradient-to-r from-golden to-golden-600 h-full rounded-full transition-all duration-700" style={{ width: `${Math.min(hub.capacity, 100)}%` }} />
                       </div>
-                      <span className="text-xs font-mono font-bold text-charcoal">{hub.capacity}%</span>
+                      <span className="text-xs font-mono font-bold text-charcoal w-8 text-right">{hub.capacity}%</span>
                     </div>
                   </div>
                 ))}
@@ -545,15 +633,34 @@ export function DistrictOverview() {
                 <p className="text-[10px] text-gray-400 uppercase tracking-wider">Sanctioned vs Released</p>
               </div>
             </div>
-            <div className="space-y-2">
-              {vdvkRankings.slice(0, 3).map((v) => (
-                <div key={v.code} className="flex items-center justify-between text-xs py-1.5 border-b border-gray-50 last:border-0">
-                  <span className="font-mono text-gray-500">{v.code}</span>
-                  <span className="font-semibold">{v.name}</span>
-                  <span className="font-mono text-emerald-600">Rs {v.amountReleased.toLocaleString()}</span>
-                </div>
-              ))}
-            </div>
+            {vdvkRankings.length > 0 ? (
+              <div className="space-y-3">
+                {vdvkRankings.slice(0, 3).map((v) => {
+                  const released = v.amountReleased ?? 0;
+                  const sanctioned = v.amountSanctioned ?? 0;
+                  const pct = sanctioned > 0 ? Math.min(Math.round((released / sanctioned) * 100), 100) : 0;
+                  return (
+                    <div key={v.code} className="border-b border-gray-50 last:border-0 last:pb-0 py-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-mono text-gray-500">{v.code}</span>
+                        <span className="font-semibold">{v.name}</span>
+                        <span className="font-mono text-emerald-600">₹ {released.toLocaleString()}</span>
+                      </div>
+                      <div className="mt-1.5 flex items-center gap-2">
+                        <div className="flex-1 bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                          <div className="bg-gradient-to-r from-golden to-golden-600 h-full rounded-full" style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className="text-[10px] font-mono text-gray-400">
+                          {pct}% of ₹ {sanctioned.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400">No fund data</p>
+            )}
           </div>
         </div>
       </div>

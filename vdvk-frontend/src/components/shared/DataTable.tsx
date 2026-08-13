@@ -20,6 +20,7 @@ type DataTableProps<TData> = {
   searchPlaceholder?: string;
   pageSize?: number;
   className?: string;
+  fillHeight?: boolean;
 };
 
 export function DataTable<TData>({
@@ -29,6 +30,7 @@ export function DataTable<TData>({
   searchPlaceholder = "Search...",
   pageSize = 10,
   className,
+  fillHeight = false,
 }: DataTableProps<TData>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -49,7 +51,7 @@ export function DataTable<TData>({
   });
 
   return (
-    <div className={cn("bg-white rounded-xl border border-gray-100 overflow-hidden", className)}>
+    <div className={cn("bg-white rounded-xl border border-gray-100 overflow-hidden", fillHeight && "flex flex-col h-full", className)}>
       {searchable && (
         <div className="p-4 border-b border-gray-100">
           <div className="relative w-72">
@@ -67,7 +69,7 @@ export function DataTable<TData>({
         </div>
       )}
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto flex-1">
         <table className="w-full border-collapse">
           <thead>
             {table.getHeaderGroups().map((headerGroup) => (

@@ -22,6 +22,7 @@ export interface DashboardKPI {
 }
 
 export interface HubItem {
+  code: string;
   name: string;
   capacity: number;
   vdvks: number;
@@ -61,6 +62,9 @@ export interface VDVKPerformance {
   amountReleased: number;
   collectionCount: number;
   processingCount: number;
+  revenue: number;
+  salesKg: number;
+  salesPcs: number;
 }
 
 export interface MandalPerformance {

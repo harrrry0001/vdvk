@@ -15,4 +15,12 @@ export const dashboardApi = {
   getCommodityRanking: (params?: { from?: string; to?: string }) =>
     client.get("/dashboard/commodity-ranking", { params }),
   getMandalPerformance: () => client.get("/dashboard/mandal-performance"),
+  getMachineryAnalytics: () => client.get("/dashboard/machinery-analytics"),
+  getCommodityGrade: (params?: { from?: string; to?: string }) =>
+    client.get("/dashboard/commodity-grade", { params }),
+  getSalesProductType: (params?: { from?: string; to?: string }) =>
+    client.get("/dashboard/sales-product-type", { params }),
+  getTopCustomers: (params?: { from?: string; to?: string; limit?: number }) =>
+    client.get("/dashboard/top-customers", { params }),
+  getFieldVisits: () => client.get("/dashboard/field-visits"),
 };

@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { PageLoading } from "@/components/shared/LoadingSpinner";
 import { type ColumnDef } from "@tanstack/react-table";
 import { Banknote, TrendingUp, Send, Wallet, AlertTriangle, Package, Factory } from "lucide-react";
+import { DonutChart, GroupedBarChart, RadialGaugeChart } from "@/components/shared/Charts";
 
 interface FundMonitoringResponse {
   totalSanctioned: number;
@@ -268,11 +269,56 @@ export function FundMonitoring() {
         </div>
       </div>
 
+      {/* Charts: fund distribution + flow */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white rounded-xl border border-gray-100 p-6">
+          <h3 className="font-display text-xl text-charcoal tracking-wide mb-2">Top VDVK Fund Allocation</h3>
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">
+            Sanctioned · Released · Utilised
+          </p>
+          <GroupedBarChart
+            data={breakdown.slice(0, 8).map((v) => ({
+              name: v.name || v.code,
+              Sanctioned: Number(v.sanctioned) || 0,
+              Released: Number(v.released) || 0,
+              Utilised: Number(v.utilised) || 0,
+            }))}
+            keys={[
+              { key: "Sanctioned", name: "Sanctioned" },
+              { key: "Released", name: "Released" },
+              { key: "Utilised", name: "Utilised" },
+            ]}
+            colors={["#171e19", "#ffe17c", "#e5ca70"]}
+            currency
+            height={280}
+          />
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-100 p-6">
+          <h3 className="font-display text-xl text-charcoal tracking-wide mb-2">Fund Flow</h3>
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">
+            Released · Utilised · Balance
+          </p>
+          <DonutChart
+            data={[
+              { name: "Utilised", value: totalExpenditure, color: "#e5ca70" },
+              { name: "Balance", value: Math.max(balance, 0), color: "#171e19" },
+            ]}
+            height={280}
+            currency
+          />
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
         <div className="bg-white p-8 border border-charcoal/5 shadow-sm">
           <h4 className="font-display text-2xl mb-8 border-b-2 border-golden pb-2 inline-block">
             Fund Summary
           </h4>
+          <div className="grid grid-cols-2 gap-4 mb-8">
+            <RadialGaugeChart value={releasePercent} label="Release Rate" color="#ffe17c" />
+            <RadialGaugeChart value={utilisationPercent} label="Utilisation" color="#b7c6c2" />
+          </div>
           <div className="space-y-6">
             {[
               { label: "Total VDVKs", value: breakdown.length.toLocaleString() },

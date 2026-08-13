@@ -7,6 +7,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { BarChart3, Download, AlertTriangle } from "lucide-react";
+import { HorizontalBarChart, GroupedBarChart } from "@/components/shared/Charts";
 
 interface VdvkRankingRow {
   rank: number;
@@ -127,6 +128,42 @@ export function VDVKPerformancePage() {
         <KPICard label="Average Collections" value={kpis.avgCollection.toLocaleString()} accent="yellow" />
         <KPICard label="Avg Released (Rs)" value={`Rs ${kpis.avgRevenue.toLocaleString()}`} accent="green" />
         <KPICard label="Total VDVKs" value={kpis.totalVdvks.toLocaleString()} accent="blue" />
+      </div>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white rounded-xl border border-gray-100 p-6">
+          <h3 className="font-display text-xl text-charcoal tracking-wide mb-2">Top VDVKs by Revenue</h3>
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Approved sales revenue</p>
+          <HorizontalBarChart
+            data={[...data]
+              .sort((a, b) => (b.amountReleased || 0) - (a.amountReleased || 0))
+              .slice(0, 10)
+              .map((v) => ({ name: v.name || v.code, value: v.amountReleased || 0 }))}
+            dataKey="value"
+            name="Revenue"
+            color="#171e19"
+            currency
+          />
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-100 p-6">
+          <h3 className="font-display text-xl text-charcoal tracking-wide mb-2">Collection vs Processing</h3>
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Transactions per VDVK</p>
+          <GroupedBarChart
+            data={data.slice(0, 8).map((v) => ({
+              name: v.name || v.code,
+              Collections: v.collectionCount || 0,
+              Processing: v.processingCount || 0,
+            }))}
+            keys={[
+              { key: "Collections", name: "Collections" },
+              { key: "Processing", name: "Processing" },
+            ]}
+            colors={["#e5ca70", "#b7c6c2"]}
+            height={300}
+          />
+        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-100">

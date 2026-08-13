@@ -4,17 +4,18 @@ import { vdvks } from "../../db/schema/master/vdvk-beneficiary.js";
 import { beneficiaries } from "../../db/schema/master/vdvk-beneficiary.js";
 import { commodities } from "../../db/schema/master/commodity-grade-rate.js";
 import { facilities, facilityVdvkMapping } from "../../db/schema/master/facility.js";
+import { mandals } from "../../db/schema/master/geo-hierarchy.js";
 import { machinery as machTable } from "../../db/schema/master/machinery.js";
 import { form1Collections, form1CollectionItems } from "../../db/schema/transaction/form1-collection.js";
 import { form3Processing, form3ProcessingItems } from "../../db/schema/transaction/form3-processing.js";
 import { form4Sales, form4SalesItems } from "../../db/schema/transaction/form4-sales.js";
-import { form10ExpenditureItems, form10FundUtilisation } from "../../db/schema/transaction/form9-10-12.js";
+import { form10ExpenditureItems, form10FundUtilisation, form12FieldVisits } from "../../db/schema/transaction/form9-10-12.js";
 import { stockLedger } from "../../db/schema/shared/stock-ledger.js";
 import { schemes } from "../../db/schema/master/scheme-exphead-customer-supplier.js";
 import { form2StockTransfers } from "../../db/schema/transaction/form2-stock-transfer.js";
 import { form8Utilisation } from "../../db/schema/transaction/form8-utilisation.js";
 import { users } from "../../db/schema/master/user.js";
-import { eq, count, sum, and, gte, lte } from "drizzle-orm";
+import { eq, count, sum, and, gte, lte, desc } from "drizzle-orm";
 import { requireRole, HonoEnv} from "../../middleware/auth.js";
 
 export const dashboardRoutes = new Hono<HonoEnv>();
@@ -40,11 +41,31 @@ dashboardRoutes.get("/district-overview", requireRole("PO", "APD", "DPM"), async
   const rawStock = await db.select({ kg: sum(stockLedger.qtyKg), pcs: sum(stockLedger.qtyPieces) }).from(stockLedger).where(and(eq(stockLedger.stockType, "Raw"), eq(stockLedger.isActive, true)));
   const procStock = await db.select({ kg: sum(stockLedger.qtyKg), pcs: sum(stockLedger.qtyPieces) }).from(stockLedger).where(and(eq(stockLedger.stockType, "Processed"), eq(stockLedger.isActive, true)));
 
+  // Hubs: real list with VDVK count served + relative capacity share.
+  const hubRows = await db.select({ code: facilities.code, name: facilities.name }).from(facilities)
+    .where(and(eq(facilities.type, "Hub"), eq(facilities.status, "Approved")));
+  const hubVdvkRows = await db
+    .select({ facilityCode: facilityVdvkMapping.facilityCode, c: count() })
+    .from(facilityVdvkMapping)
+    .groupBy(facilityVdvkMapping.facilityCode);
+  const hubVdvkCount: Record<string, number> = {};
+  hubVdvkRows.forEach((r) => { hubVdvkCount[r.facilityCode] = r.c; });
+  const totalHubVdvks = hubVdvkRows.reduce((s, r) => s + r.c, 0) || 1;
+  const hubs = hubRows.map((h) => {
+    const vdvksServed = hubVdvkCount[h.code] || 0;
+    return {
+      code: h.code,
+      name: h.name,
+      vdvks: vdvksServed,
+      capacity: Math.round((vdvksServed / totalHubVdvks) * 100),
+    };
+  });
+
   return c.json({
     totalVdvks: vdvkCount[0].c,
     totalBeneficiaries: benefCount[0].c,
     totalFacilities: facilityCount[0].c,
-    totalHubs: facilityCount, // TODO: filter by type
+    totalHubs: hubs,
     totalMachinery: activeMach[0].c,
     totalSchemes: schemesCount[0].c,
     collectionTransactions: form1Approved[0].c,
@@ -749,7 +770,7 @@ dashboardRoutes.get("/commodity-ranking", requireRole("PO", "APD", "DPM"), async
 // Per Mandal: VDVK count, beneficiaries, MFP collection, revenue, and counts
 // of Hubs / Multipurpose Centres / Haat Bazaars.
 dashboardRoutes.get("/mandal-performance", requireRole("PO", "APD", "DPM"), async (c) => {
-  const [vdvkRows, benRows, facRows, collRows, salesRows] = await Promise.all([
+  const [vdvkRows, benRows, facRows, collRows, salesRows, mandalRows] = await Promise.all([
     db.select({ mandal: vdvks.mandal, c: count() })
       .from(vdvks).where(eq(vdvks.status, "Approved")).groupBy(vdvks.mandal),
     db.select({ mandal: beneficiaries.mandal, c: count() })
@@ -768,10 +789,14 @@ dashboardRoutes.get("/mandal-performance", requireRole("PO", "APD", "DPM"), asyn
       .innerJoin(vdvks, eq(vdvks.code, form4SalesItems.vdvkCode))
       .where(eq(form4Sales.status, "Approved"))
       .groupBy(vdvks.mandal),
+    db.select({ code: mandals.code, name: mandals.name }).from(mandals).where(eq(mandals.status, "Active")),
   ]);
 
+  const mandalName: Record<string, string> = {};
+  mandalRows.forEach((m) => { mandalName[m.code] = m.name; });
+
   const map = new Map<string, {
-    mandal: string; vdvks: number; beneficiaries: number;
+    mandal: string; mandalName: string; vdvks: number; beneficiaries: number;
     collectionKg: number; revenue: number;
     hubs: number; mpc: number; haatBazaars: number;
   }>();
@@ -780,7 +805,7 @@ dashboardRoutes.get("/mandal-performance", requireRole("PO", "APD", "DPM"), asyn
     const key = (m || "Unassigned").trim() || "Unassigned";
     let b = map.get(key);
     if (!b) {
-      b = { mandal: key, vdvks: 0, beneficiaries: 0, collectionKg: 0, revenue: 0, hubs: 0, mpc: 0, haatBazaars: 0 };
+      b = { mandal: key, mandalName: mandalName[key] || key, vdvks: 0, beneficiaries: 0, collectionKg: 0, revenue: 0, hubs: 0, mpc: 0, haatBazaars: 0 };
       map.set(key, b);
     }
     return b;
@@ -800,5 +825,224 @@ dashboardRoutes.get("/mandal-performance", requireRole("PO", "APD", "DPM"), asyn
 
   const results = Array.from(map.values()).sort((a, b) => b.collectionKg - a.collectionKg);
   return c.json(results);
+});
+
+// ─── MACHINERY ANALYTICS ─────────────────────────────────────────────────
+// Value/cost, warranty, and deployment breakdowns for the assets dashboard.
+dashboardRoutes.get("/machinery-analytics", requireRole("PO", "APD", "DPM"), async (c) => {
+  // Cost by funding source
+  const fundingRows = await db
+    .select({ source: machTable.fundingSource, cost: sum(machTable.totalCost), c: count() })
+    .from(machTable)
+    .where(eq(machTable.status, "Approved"))
+    .groupBy(machTable.fundingSource);
+
+  // Cost by mandal
+  const mandalCostRows = await db
+    .select({ mandal: machTable.mandal, cost: sum(machTable.totalCost), c: count() })
+    .from(machTable)
+    .where(eq(machTable.status, "Approved"))
+    .groupBy(machTable.mandal);
+
+  // Warranty expiry buckets (relative to today)
+  const today = new Date().toISOString().slice(0, 10);
+  const allMach = await db
+    .select({
+      warrantyAvailable: machTable.warrantyAvailable,
+      warrantyExpiryDate: machTable.warrantyExpiryDate,
+    })
+    .from(machTable)
+    .where(eq(machTable.status, "Approved"));
+
+  let expired = 0, expiring = 0, valid = 0, noWarranty = 0;
+  allMach.forEach((m) => {
+    if (!m.warrantyAvailable || !m.warrantyExpiryDate) { noWarranty += 1; return; }
+    const expiry = m.warrantyExpiryDate.slice(0, 10);
+    if (expiry < today) expired += 1;
+    else if (expiry <= today.slice(0, 8) + "90") expiring += 1; // within ~3 months
+    else valid += 1;
+  });
+
+  const mandalNameMap: Record<string, string> = {};
+  const mandalRows = await db.select({ code: mandals.code, name: mandals.name }).from(mandals);
+  mandalRows.forEach((m) => { mandalNameMap[m.code] = m.name; });
+
+  return c.json({
+    fundingSource: fundingRows.map((r) => ({
+      source: r.source || "Unspecified",
+      cost: Number(r.cost || 0),
+      count: r.c,
+    })),
+    byMandal: mandalCostRows.map((r) => ({
+      mandal: r.mandal || "Unassigned",
+      mandalName: mandalNameMap[r.mandal || ""] || r.mandal || "Unassigned",
+      cost: Number(r.cost || 0),
+      count: r.c,
+    })),
+    warranty: { expired, expiring, valid, noWarranty },
+  });
+});
+
+// ─── COMMODITY × GRADE COLLECTION/SALES ──────────────────────────────────
+// Grade-wise MFP collection and sales so charts can break commodities down
+// by grade (A, B, C ...). Returns one row per commodity+grade.
+dashboardRoutes.get("/commodity-grade", requireRole("PO", "APD", "DPM"), async (c) => {
+  const { from, to } = c.req.query();
+
+  const collConds = [eq(form1Collections.status, "Approved")];
+  if (from) collConds.push(gte(form1Collections.collectionDate, from));
+  if (to) collConds.push(lte(form1Collections.collectionDate, to));
+  const collRows = await db
+    .select({
+      commodityCode: form1CollectionItems.commodityCode,
+      commodityName: form1CollectionItems.commodityNameSnapshot,
+      grade: form1CollectionItems.gradeNameSnapshot,
+      kg: sum(form1CollectionItems.qtyKg),
+      pcs: sum(form1CollectionItems.qtyPieces),
+      value: sum(form1CollectionItems.totalCost),
+    })
+    .from(form1CollectionItems)
+    .innerJoin(form1Collections, eq(form1Collections.id, form1CollectionItems.collectionId))
+    .where(and(...collConds))
+    .groupBy(form1CollectionItems.commodityCode, form1CollectionItems.commodityNameSnapshot, form1CollectionItems.gradeNameSnapshot);
+
+  const salesConds = [eq(form4Sales.status, "Approved")];
+  if (from) salesConds.push(gte(form4Sales.saleDate, from));
+  if (to) salesConds.push(lte(form4Sales.saleDate, to));
+  const salesRows = await db
+    .select({
+      commodityCode: form4SalesItems.commodityCode,
+      commodityName: form4SalesItems.commodityNameSnapshot,
+      grade: form4SalesItems.gradeNameSnapshot,
+      kg: sum(form4SalesItems.soldKg),
+      pcs: sum(form4SalesItems.soldPcs),
+      revenue: sum(form4SalesItems.totalSalesValue),
+    })
+    .from(form4SalesItems)
+    .innerJoin(form4Sales, eq(form4Sales.id, form4SalesItems.salesId))
+    .where(and(...salesConds))
+    .groupBy(form4SalesItems.commodityCode, form4SalesItems.commodityNameSnapshot, form4SalesItems.gradeNameSnapshot);
+
+  const buckets = new Map<string, {
+    commodityCode: string; commodityName: string; grade: string;
+    collectionKg: number; collectionPcs: number; value: number;
+    salesKg: number; salesPcs: number; revenue: number;
+  }>();
+
+  const get = (code: string, name: string | null, grade: string | null) => {
+    const key = `${code}|${grade}`;
+    let b = buckets.get(key);
+    if (!b) {
+      b = {
+        commodityCode: code, commodityName: name || code, grade: grade || "N/A",
+        collectionKg: 0, collectionPcs: 0, value: 0, salesKg: 0, salesPcs: 0, revenue: 0,
+      };
+      buckets.set(key, b);
+    }
+    return b;
+  };
+
+  collRows.forEach((r) => {
+    const b = get(r.commodityCode, r.commodityName, r.grade);
+    b.collectionKg += Number(r.kg || 0);
+    b.collectionPcs += Number(r.pcs || 0);
+    b.value += Number(r.value || 0);
+  });
+  salesRows.forEach((r) => {
+    const b = get(r.commodityCode, r.commodityName, r.grade);
+    b.salesKg += Number(r.kg || 0);
+    b.salesPcs += Number(r.pcs || 0);
+    b.revenue += Number(r.revenue || 0);
+  });
+
+  return c.json(Array.from(buckets.values()));
+});
+
+// ─── SALES PRODUCT TYPE SPLIT ────────────────────────────────────────────
+// Raw vs Processed sales — revenue + quantity share for a donut chart.
+dashboardRoutes.get("/sales-product-type", requireRole("PO", "APD", "DPM"), async (c) => {
+  const { from, to } = c.req.query();
+  const conds = [eq(form4Sales.status, "Approved")];
+  if (from) conds.push(gte(form4Sales.saleDate, from));
+  if (to) conds.push(lte(form4Sales.saleDate, to));
+
+  const rows = await db
+    .select({
+      productType: form4SalesItems.productType,
+      kg: sum(form4SalesItems.soldKg),
+      pcs: sum(form4SalesItems.soldPcs),
+      revenue: sum(form4SalesItems.totalSalesValue),
+    })
+    .from(form4SalesItems)
+    .innerJoin(form4Sales, eq(form4Sales.id, form4SalesItems.salesId))
+    .where(and(...conds))
+    .groupBy(form4SalesItems.productType);
+
+  return c.json(rows.map((r) => ({
+    productType: r.productType || "Unknown",
+    kg: Number(r.kg || 0),
+    pcs: Number(r.pcs || 0),
+    revenue: Number(r.revenue || 0),
+  })));
+});
+
+// ─── TOP CUSTOMERS BY REVENUE ────────────────────────────────────────────
+dashboardRoutes.get("/top-customers", requireRole("PO", "APD", "DPM"), async (c) => {
+  const { from, to, limit = "8" } = c.req.query();
+  const conds = [eq(form4Sales.status, "Approved")];
+  if (from) conds.push(gte(form4Sales.saleDate, from));
+  if (to) conds.push(lte(form4Sales.saleDate, to));
+
+  const rows = await db
+    .select({
+      customer: form4SalesItems.customerNameSnapshot,
+      revenue: sum(form4SalesItems.totalSalesValue),
+      kg: sum(form4SalesItems.soldKg),
+      c: count(),
+    })
+    .from(form4SalesItems)
+    .innerJoin(form4Sales, eq(form4Sales.id, form4SalesItems.salesId))
+    .where(and(...conds))
+    .groupBy(form4SalesItems.customerNameSnapshot)
+    .limit(Number(limit) || 8);
+
+  return c.json(rows.map((r) => ({
+    customer: r.customer || "Walk-in",
+    revenue: Number(r.revenue || 0),
+    kg: Number(r.kg || 0),
+    txns: r.c,
+  })));
+});
+
+// ─── FIELD VISIT MONITORING ──────────────────────────────────────────────
+// Enriched Form 12 visits with mandal names for the monitoring dashboard.
+dashboardRoutes.get("/field-visits", requireRole("PO", "APD", "DPM", "APM"), async (c) => {
+  const [rows, mandalRows] = await Promise.all([
+    db.select().from(form12FieldVisits).orderBy(desc(form12FieldVisits.visitDate)),
+    db.select({ code: mandals.code, name: mandals.name }).from(mandals),
+  ]);
+  const mandalName: Record<string, string> = {};
+  mandalRows.forEach((m) => { mandalName[m.code] = m.name; });
+
+  return c.json(rows.map((r) => ({
+    id: r.id,
+    txnNo: r.txnNo,
+    visitDate: r.visitDate,
+    visitStartTime: r.visitStartTime,
+    visitEndTime: r.visitEndTime,
+    mandal: r.mandal,
+    mandalName: mandalName[r.mandal] || r.mandal,
+    visitLocationType: r.visitLocationType,
+    locationName: r.locationName,
+    relatedVdvkCodes: r.relatedVdvkCodes,
+    purposeOfVisit: r.purposeOfVisit,
+    visitDescription: r.visitDescription,
+    keyObservations: r.keyObservations,
+    gpsLatitude: r.gpsLatitude,
+    gpsLongitude: r.gpsLongitude,
+    photoCount: r.photoCount,
+    createdBy: r.createdBy,
+    createdAt: r.createdAt,
+  })));
 });
 

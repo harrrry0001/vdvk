@@ -1,68 +1,125 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { formsApi } from "@/api/endpoints/forms";
+import { dashboardApi } from "@/api/endpoints/dashboard";
 import { DataTable } from "@/components/shared/DataTable";
-import { StatusBadge } from "@/components/shared/StatusBadge";
 import { KPICard } from "@/components/shared/KPICard";
 import { PageLoading } from "@/components/shared/LoadingSpinner";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { DonutChart, AreaTrendChart } from "@/components/shared/Charts";
 import type { ColumnDef } from "@tanstack/react-table";
 import { cn } from "@/lib/utils";
-import { MapPin, Camera, Eye } from "lucide-react";
+import { MapPin, Camera, Eye, Navigation, Clock, Crosshair } from "lucide-react";
 
 interface FieldVisit {
   id: string;
+  txnNo?: string;
   visitDate?: string;
-  location?: string;
-  gpsCoordinates?: string;
-  purpose?: string;
+  visitStartTime?: string;
+  visitEndTime?: string;
+  mandal?: string;
+  mandalName?: string;
+  visitLocationType?: string;
+  locationName?: string;
+  relatedVdvkCodes?: string[] | null;
+  purposeOfVisit?: string;
+  visitDescription?: string;
   keyObservations?: string;
-  photos?: string[];
-  status?: string;
+  gpsLatitude?: number | null;
+  gpsLongitude?: number | null;
+  photoCount?: number;
   createdAt?: string;
+}
+
+const TYPE_COLORS: Record<string, string> = {
+  VDVK: "#171e19",
+  Hub: "#ffe17c",
+  "Collection Centre": "#e5ca70",
+  "Haat Bazaar": "#b7c6c2",
+  Beneficiary: "#859892",
+  Other: "#ccb464",
+};
+
+function hasGps(v: FieldVisit): boolean {
+  return typeof v.gpsLatitude === "number" && typeof v.gpsLongitude === "number";
+}
+
+function GpsLink({ lat, lon, className }: { lat?: number | null; lon?: number | null; className?: string }) {
+  if (typeof lat !== "number" || typeof lon !== "number") {
+    return <span className={cn("font-mono text-xs text-gray-400", className)}>No GPS</span>;
+  }
+  const href = `https://www.google.com/maps?q=${lat},${lon}`;
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      title="Open in Google Maps"
+      className={cn(
+        "inline-flex items-center gap-1 font-mono text-xs text-emerald-600 hover:text-emerald-700 underline decoration-dotted underline-offset-2",
+        className
+      )}
+    >
+      <Navigation size={12} />
+      {lat.toFixed(4)}, {lon.toFixed(4)}
+    </a>
+  );
+}
+
+function parseDate(d?: string): Date | null {
+  if (!d) return null;
+  const dt = new Date(d.includes("T") ? d : `${d}T00:00:00`);
+  return isNaN(dt.getTime()) ? null : dt;
 }
 
 export function FieldVisitMonitoring() {
   const [selectedVisit, setSelectedVisit] = useState<FieldVisit | null>(null);
+  const [typeFilter, setTypeFilter] = useState<string>("All");
 
   const { data: rawData, isLoading, isError } = useQuery({
-    queryKey: ["forms", "form12"],
-    queryFn: () => formsApi.list("form12").then((r) => r.data ?? []),
+    queryKey: ["dashboard", "field-visits"],
+    queryFn: () => dashboardApi.getFieldVisits().then((r) => r.data ?? []),
   });
 
-  const visits: FieldVisit[] = useMemo(() => {
-    return Array.isArray(rawData) ? (rawData as FieldVisit[]) : [];
-  }, [rawData]);
+  const visits: FieldVisit[] = useMemo(
+    () => (Array.isArray(rawData) ? (rawData as FieldVisit[]) : []),
+    [rawData]
+  );
+
+  const types = useMemo(() => {
+    const s = new Set<string>();
+    visits.forEach((v) => { if (v.visitLocationType) s.add(v.visitLocationType); });
+    return Array.from(s);
+  }, [visits]);
+
+  const filtered = useMemo(
+    () => (typeFilter === "All" ? visits : visits.filter((v) => v.visitLocationType === typeFilter)),
+    [visits, typeFilter]
+  );
 
   const today = useMemo(() => format(new Date(), "yyyy-MM-dd"), []);
   const monthPrefix = useMemo(() => format(new Date(), "yyyy-MM"), []);
 
   const kpis = useMemo(() => {
-    if (!visits.length) {
-      return { total: 0, todayVisits: 0, weekVisits: 0, monthVisits: 0, locationsVisited: 0, taggedPhotos: 0 };
-    }
-
     const now = new Date();
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - now.getDay());
     startOfWeek.setHours(0, 0, 0, 0);
 
-    let todayVisits = 0;
-    let weekVisits = 0;
-    let monthVisits = 0;
-    let taggedPhotos = 0;
+    let todayVisits = 0, weekVisits = 0, monthVisits = 0, geoTagged = 0, photos = 0;
     const locations = new Set<string>();
+    const mandals = new Set<string>();
 
     for (const v of visits) {
       const dateStr = (v.visitDate || v.createdAt || "").slice(0, 10);
       if (dateStr === today) todayVisits++;
       if (dateStr >= format(startOfWeek, "yyyy-MM-dd")) weekVisits++;
       if (dateStr.slice(0, 7) === monthPrefix) monthVisits++;
-      if (v.location) locations.add(v.location);
-      if (v.gpsCoordinates) {
-        taggedPhotos += Array.isArray(v.photos) ? v.photos.length : 0;
-      }
+      if (v.locationName) locations.add(v.locationName);
+      if (v.mandal) mandals.add(v.mandal);
+      if (hasGps(v)) geoTagged++;
+      photos += v.photoCount || 0;
     }
 
     return {
@@ -71,67 +128,109 @@ export function FieldVisitMonitoring() {
       weekVisits,
       monthVisits,
       locationsVisited: locations.size,
-      taggedPhotos,
+      mandalsVisited: mandals.size,
+      geoTagged,
+      photos,
     };
   }, [visits, today, monthPrefix]);
 
+  const typeDonut = useMemo(() => {
+    const counts: Record<string, number> = {};
+    visits.forEach((v) => {
+      const t = v.visitLocationType || "Other";
+      counts[t] = (counts[t] || 0) + 1;
+    });
+    return Object.entries(counts).map(([name, value]) => ({
+      name,
+      value,
+      color: TYPE_COLORS[name] || "#b7c6c2",
+    }));
+  }, [visits]);
+
+  const monthlyTrend = useMemo(() => {
+    const counts: Record<string, number> = {};
+    visits.forEach((v) => {
+      const key = (v.visitDate || v.createdAt || "").slice(0, 7);
+      if (/^\d{4}-\d{2}$/.test(key)) counts[key] = (counts[key] || 0) + 1;
+    });
+    return Object.entries(counts)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([month, value]) => {
+        const [y, m] = month.split("-");
+        return { month: `${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][Number(m) - 1]} '${y.slice(2)}`, value };
+      });
+  }, [visits]);
+
   const columns: ColumnDef<FieldVisit, unknown>[] = [
     {
-      accessorKey: "id",
-      header: "Visit ID",
-      cell: ({ getValue }) => (
-        <span className="font-mono text-xs">{String(getValue() ?? "--")}</span>
-      ),
-    },
-    {
-      accessorKey: "visitDate",
-      header: "Date",
+      id: "date",
+      header: "Date & Time",
       cell: ({ row }) => {
-        const d = row.original.visitDate || row.original.createdAt;
-        if (!d) return "--";
-        return format(
-          new Date(d + (d.includes("T") ? "" : "T00:00:00")),
-          "dd/MM/yyyy"
-        );
-      },
-    },
-    {
-      accessorKey: "location",
-      header: "VDVK / Location",
-      cell: ({ getValue }) => (
-        <div className="flex items-center gap-1">
-          <MapPin size={12} className="text-gray-400" />
-          <span className="font-semibold text-sm">{String(getValue() ?? "--")}</span>
-        </div>
-      ),
-    },
-    {
-      accessorKey: "purpose",
-      header: "Purpose",
-      cell: ({ getValue }) => <span>{String(getValue() ?? "--")}</span>,
-    },
-    {
-      accessorKey: "gpsCoordinates",
-      header: "GPS",
-      cell: ({ getValue, row }) => {
-        const gps = getValue<string>();
-        const hasGps = typeof gps === "string" && gps.length > 0;
-        const photos = Array.isArray(row.original.photos) ? row.original.photos.length : 0;
+        const d = parseDate(row.original.visitDate || row.original.createdAt);
         return (
-          <div className="flex items-center gap-1.5">
-            <Camera size={14} className="text-gray-400" />
-            <span className="font-mono text-xs">{photos || 0}</span>
-            {!hasGps && (
-              <span className="text-[8px] font-black text-red-500 uppercase">No GPS</span>
+          <div>
+            <p className="font-semibold text-sm text-charcoal">{d ? format(d, "dd MMM yyyy") : "--"}</p>
+            {row.original.visitStartTime && (
+              <p className="text-[10px] font-mono text-gray-400">
+                {row.original.visitStartTime}
+                {row.original.visitEndTime ? `–${row.original.visitEndTime}` : ""}
+              </p>
             )}
           </div>
         );
       },
     },
     {
-      accessorKey: "status",
-      header: "Status",
-      cell: ({ getValue }) => <StatusBadge status={String(getValue() ?? "Draft")} />,
+      id: "location",
+      header: "Location",
+      cell: ({ row }) => (
+        <div className="min-w-0">
+          <div className="flex items-center gap-1">
+            <MapPin size={12} className="text-gray-400 shrink-0" />
+            <span className="font-semibold text-sm truncate">{row.original.locationName || "--"}</span>
+          </div>
+          <p className="text-[10px] text-gray-400 mt-0.5 truncate">
+            {row.original.mandalName || row.original.mandal || "--"}
+          </p>
+        </div>
+      ),
+    },
+    {
+      id: "type",
+      header: "Type",
+      cell: ({ row }) => {
+        const t = row.original.visitLocationType || "Other";
+        return (
+          <span
+            className="inline-flex items-center px-2 py-0.5 text-[10px] font-black uppercase rounded-full"
+            style={{ backgroundColor: `${TYPE_COLORS[t] || "#b7c6c2"}18`, color: TYPE_COLORS[t] || "#171e19" }}
+          >
+            {t}
+          </span>
+        );
+      },
+    },
+    {
+      id: "purpose",
+      header: "Purpose",
+      cell: ({ row }) => <span className="text-sm text-charcoal/80">{row.original.purposeOfVisit || "--"}</span>,
+    },
+    {
+      id: "gps",
+      header: "GPS",
+      cell: ({ row }) => (
+        <GpsLink lat={row.original.gpsLatitude} lon={row.original.gpsLongitude} />
+      ),
+    },
+    {
+      id: "photos",
+      header: "Photos",
+      cell: ({ row }) => (
+        <div className="flex items-center gap-1.5">
+          <Camera size={14} className="text-gray-400" />
+          <span className="font-mono text-xs">{row.original.photoCount || 0}</span>
+        </div>
+      ),
     },
     {
       id: "actions",
@@ -171,23 +270,78 @@ export function FieldVisitMonitoring() {
         <p className="text-charcoal/50 text-sm font-medium uppercase tracking-[0.2em] mt-1">APM Visit Logs & Geo-Tagged Observations</p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
         <KPICard label="Total Visits" value={kpis.total.toLocaleString()} accent="yellow" />
-        <KPICard label="Visits Today" value={kpis.todayVisits.toLocaleString()} accent="green" />
+        <KPICard label="Today" value={kpis.todayVisits.toLocaleString()} accent="green" />
         <KPICard label="This Week" value={kpis.weekVisits.toLocaleString()} accent="blue" />
         <KPICard label="This Month" value={kpis.monthVisits.toLocaleString()} accent="purple" />
-        <KPICard label="VDVKs Visited" value={kpis.locationsVisited.toLocaleString()} accent="yellow" />
-        <KPICard label="Tagged Photos" value={kpis.taggedPhotos.toLocaleString()} accent="green" />
+        <KPICard label="Locations" value={kpis.locationsVisited.toLocaleString()} accent="yellow" />
+        <KPICard label="Mandals" value={kpis.mandalsVisited.toLocaleString()} accent="green" />
+        <KPICard label="Geo-Tagged" value={kpis.geoTagged.toLocaleString()} accent="blue" />
+        <KPICard label="Photos" value={kpis.photos.toLocaleString()} accent="purple" />
       </div>
 
-      {visits.length === 0 ? (
-        <EmptyState
-          title="No Field Visits Logged"
-          description="Field visit entries will appear here once logged via Form 12."
-        />
-      ) : (
-        <DataTable columns={columns} data={visits} searchable searchPlaceholder="Search visits..." />
-      )}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-100 p-6">
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+            <div>
+              <h3 className="font-display text-xl text-charcoal tracking-wide">Visit Register</h3>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Field observations</p>
+            </div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <button
+                onClick={() => setTypeFilter("All")}
+                className={cn(
+                  "px-3 py-1 text-xs font-semibold rounded-full transition-colors",
+                  typeFilter === "All" ? "bg-charcoal text-golden" : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                )}
+              >
+                All
+              </button>
+              {types.map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setTypeFilter(t)}
+                  className={cn(
+                    "px-3 py-1 text-xs font-semibold rounded-full transition-colors",
+                    typeFilter === t ? "bg-charcoal text-golden" : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                  )}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {filtered.length === 0 ? (
+            <EmptyState
+              title="No Field Visits Logged"
+              description="Field visit entries will appear here once logged via Form 12."
+            />
+          ) : (
+            <DataTable
+              columns={columns}
+              data={filtered}
+              searchable
+              searchPlaceholder="Search visits..."
+            />
+          )}
+        </div>
+
+        <div className="space-y-6">
+          <div className="bg-white rounded-xl border border-gray-100 p-6">
+            <h3 className="font-display text-xl text-charcoal tracking-wide mb-2">Visits by Location Type</h3>
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Distribution</p>
+            <DonutChart data={typeDonut} height={240} />
+          </div>
+
+          <div className="bg-white rounded-xl border border-gray-100 p-6">
+            <h3 className="font-display text-xl text-charcoal tracking-wide mb-2">Visits Trend</h3>
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Monthly volume</p>
+            <AreaTrendChart data={monthlyTrend} name="Visits" color="#e5ca70" height={200} />
+          </div>
+        </div>
+      </div>
 
       {selectedVisit && (
         <div
@@ -199,7 +353,10 @@ export function FieldVisitMonitoring() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-6">
-              <h3 className="font-display text-lg text-charcoal">Visit Details — {selectedVisit.id}</h3>
+              <div>
+                <h3 className="font-display text-lg text-charcoal">Visit Details</h3>
+                <p className="text-[10px] font-mono text-gray-400">{selectedVisit.txnNo || selectedVisit.id}</p>
+              </div>
               <button
                 onClick={() => setSelectedVisit(null)}
                 className="text-gray-400 hover:text-charcoal p-1"
@@ -207,49 +364,77 @@ export function FieldVisitMonitoring() {
                 &times;
               </button>
             </div>
+
+            <div className="flex items-center gap-2 mb-5">
+              <span
+                className="inline-flex items-center px-2.5 py-1 text-[10px] font-black uppercase rounded-full"
+                style={{ backgroundColor: `${TYPE_COLORS[selectedVisit.visitLocationType || "Other"] || "#b7c6c2"}18`, color: TYPE_COLORS[selectedVisit.visitLocationType || "Other"] || "#171e19" }}
+              >
+                {selectedVisit.visitLocationType || "Other"}
+              </span>
+              {hasGps(selectedVisit) && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full uppercase">
+                  <Crosshair size={11} /> Geo-Tagged
+                </span>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <p className="kpi-label">Date</p>
-                <p>
-                  {selectedVisit.visitDate
-                    ? format(
-                        new Date(
-                          selectedVisit.visitDate +
-                            (selectedVisit.visitDate.includes("T") ? "" : "T00:00:00")
-                        ),
-                        "dd/MM/yyyy"
-                      )
-                    : selectedVisit.createdAt
-                      ? format(new Date(selectedVisit.createdAt), "dd/MM/yyyy")
-                      : "--"}
+                <p className="font-semibold">
+                  {(() => {
+                    const d = parseDate(selectedVisit.visitDate || selectedVisit.createdAt);
+                    return d ? format(d, "dd/MM/yyyy") : "--";
+                  })()}
                 </p>
               </div>
               <div>
+                <p className="kpi-label">Time</p>
+                <p className="font-semibold flex items-center gap-1">
+                  <Clock size={13} className="text-gray-400" />
+                  {selectedVisit.visitStartTime || "--"}
+                  {selectedVisit.visitEndTime ? `–${selectedVisit.visitEndTime}` : ""}
+                </p>
+              </div>
+              <div className="col-span-2">
                 <p className="kpi-label">Location</p>
-                <p className="font-semibold">{selectedVisit.location ?? "--"}</p>
-              </div>
-              <div>
-                <p className="kpi-label">Purpose</p>
-                <p className="font-semibold">{selectedVisit.purpose ?? "--"}</p>
-              </div>
-              <div>
-                <p className="kpi-label">GPS Status</p>
-                <p className={selectedVisit.gpsCoordinates ? "text-green-600" : "text-red-500"}>
-                  {selectedVisit.gpsCoordinates ? "Tagged" : "Not Tagged"}
+                <p className="font-semibold flex items-center gap-1.5">
+                  <MapPin size={13} className="text-gray-400" />
+                  {selectedVisit.locationName || "--"}
                 </p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {selectedVisit.mandalName || selectedVisit.mandal || "--"} Mandal
+                </p>
+              </div>
+              <div className="col-span-2">
+                <p className="kpi-label">Purpose</p>
+                <p className="font-semibold">{selectedVisit.purposeOfVisit || "--"}</p>
               </div>
               <div>
                 <p className="kpi-label">Photos</p>
-                <p>{Array.isArray(selectedVisit.photos) ? selectedVisit.photos.length : 0}</p>
+                <p>{selectedVisit.photoCount || 0}</p>
               </div>
               <div>
-                <p className="kpi-label">Status</p>
-                <StatusBadge status={selectedVisit.status ?? "Draft"} />
+                <p className="kpi-label">Related VDVKs</p>
+                <p className="font-mono text-xs">
+                  {Array.isArray(selectedVisit.relatedVdvkCodes) && selectedVisit.relatedVdvkCodes.length
+                    ? selectedVisit.relatedVdvkCodes.join(", ")
+                    : "--"}
+                </p>
               </div>
-              {selectedVisit.gpsCoordinates && (
+              {hasGps(selectedVisit) && (
                 <div className="col-span-2">
-                  <p className="kpi-label">GPS Coordinates</p>
-                  <p className="font-mono text-xs">{selectedVisit.gpsCoordinates}</p>
+                  <p className="kpi-label flex items-center gap-1">
+                    <Navigation size={12} className="text-gray-400" /> GPS Coordinates
+                  </p>
+                  <GpsLink lat={selectedVisit.gpsLatitude} lon={selectedVisit.gpsLongitude} />
+                </div>
+              )}
+              {selectedVisit.visitDescription && (
+                <div className="col-span-2">
+                  <p className="kpi-label">Description</p>
+                  <p className="text-charcoal/70">{selectedVisit.visitDescription}</p>
                 </div>
               )}
               {selectedVisit.keyObservations && (
