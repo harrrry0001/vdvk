@@ -140,16 +140,16 @@ export function Sidebar() {
     >
       {/* Branding */}
       <div className={cn(
-        "flex items-center gap-3 p-6 border-b border-white/5",
-        isCollapsed ? "justify-center" : ""
+        "flex items-center border-b border-white/5",
+        isCollapsed ? "justify-center p-3" : "gap-3 p-6"
       )}>
         <img
           src="/logo.svg"
           alt="PMVDY Logo"
           className="shrink-0"
           style={{
-            width: isCollapsed ? "40px" : "64px",
-            height: isCollapsed ? "40px" : "64px",
+            width: isCollapsed ? "48px" : "64px",
+            height: isCollapsed ? "48px" : "64px",
             filter: "drop-shadow(0 2px 8px rgba(255,225,124,0.15))",
             transition: "all 0.3s ease-in-out",
           }}
