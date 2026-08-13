@@ -4,17 +4,56 @@ import { KPICard } from "@/components/shared/KPICard";
 import { DataTable } from "@/components/shared/DataTable";
 import { PageLoading } from "@/components/shared/LoadingSpinner";
 import { type ColumnDef } from "@tanstack/react-table";
-import type { CommodityPerformance, HubItem } from "@/types";
+import type { HubItem } from "@/types";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import {
-  AlertTriangle, TrendingUp, TrendingDown, Building2, Factory,
+  AlertTriangle, TrendingUp, Building2, Factory,
   ShoppingBag, Package, Warehouse, BarChart3, Eye,
 } from "lucide-react";
 import { useSidebarStore } from "@/stores/sidebarStore";
 import { useAuth } from "@/hooks/useAuth";
+import { CommodityCollectionChart, OperationalTrendChart } from "@/components/shared/Charts";
 
 const timeFilters = ["Today", "Week", "Month", "Quarter", "Year", "Custom"];
+
+function toISO(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+// Maps the active period filter to an ISO [from, to] range so the dashboard
+// charts/tables re-query the backend for that period. "Custom" returns
+// undefined (all-time) unless a picker is provided.
+function periodRange(period: string): { from?: string; to?: string } {
+  const now = new Date();
+  switch (period) {
+    case "Today": {
+      const s = toISO(now);
+      return { from: s, to: s };
+    }
+    case "Week": {
+      const day = now.getDay() || 7; // Sunday=0 -> 7
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - day + 1);
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      return { from: toISO(monday), to: toISO(sunday) };
+    }
+    case "Month":
+      return { from: toISO(new Date(now.getFullYear(), now.getMonth(), 1)), to: toISO(now) };
+    case "Quarter": {
+      const qStartMonth = Math.floor(now.getMonth() / 3) * 3;
+      return { from: toISO(new Date(now.getFullYear(), qStartMonth, 1)), to: toISO(now) };
+    }
+    case "Year":
+      return { from: `${now.getFullYear()}-01-01`, to: toISO(now) };
+    default:
+      return {};
+  }
+}
 
 interface VdvkRankingRow {
   rank: number;
@@ -40,27 +79,40 @@ export function DistrictOverview() {
     enabled: canViewFull,
   });
 
-  const { data: commodityPerf, isLoading: commodityLoading, isError: commodityError, refetch: commodityRefetch } = useQuery({
-    queryKey: ["dashboard", "commodity-performance"],
-    queryFn: () =>
-      dashboardApi.getCommodityPerformance().then((r) => ({
-        items: (r.data?.stockByCommodity ?? []) as CommodityPerformance[],
-        totalSales: r.data?.totalSales ?? 0,
-      })),
-    enabled: canViewFull,
-  });
-
   const { data: vdvkRaw, isLoading: vdvkLoading, isError: vdvkError, refetch: vdvkRefetch } = useQuery({
-    queryKey: ["dashboard", "vdvk-performance"],
-    queryFn: () => dashboardApi.getVdvkPerformance().then((r) => r.data ?? []),
+    queryKey: ["dashboard", "vdvk-performance", activeFilter],
+    queryFn: () => dashboardApi.getVdvkPerformance(periodRange(activeFilter)).then((r) => r.data ?? []),
     enabled: canViewFull,
   });
 
-  const isError = overviewError || commodityError || vdvkError;
+  const { data: chartCollection, isLoading: chartCollLoading } = useQuery({
+    queryKey: ["dashboard", "collection-by-commodity", activeFilter],
+    queryFn: () => dashboardApi.getCollectionByCommodity(periodRange(activeFilter)).then((r) => r.data ?? []),
+    enabled: canViewFull,
+  });
+
+  const { data: chartTrend, isLoading: chartTrendLoading } = useQuery({
+    queryKey: ["dashboard", "operational-trend"],
+    queryFn: () => dashboardApi.getOperationalTrend(12).then((r) => r.data ?? []),
+    enabled: canViewFull,
+  });
+
+  const { data: commodityRank, isLoading: commodityRankLoading } = useQuery({
+    queryKey: ["dashboard", "commodity-ranking", activeFilter],
+    queryFn: () => dashboardApi.getCommodityRanking(periodRange(activeFilter)).then((r) => r.data ?? []),
+    enabled: canViewFull,
+  });
+
+  const { data: mandalPerf, isLoading: mandalLoading } = useQuery({
+    queryKey: ["dashboard", "mandal-performance"],
+    queryFn: () => dashboardApi.getMandalPerformance().then((r) => r.data ?? []),
+    enabled: canViewFull,
+  });
+
+  const isError = overviewError || vdvkError;
 
   const handleRetry = () => {
     overviewRefetch();
-    commodityRefetch();
     vdvkRefetch();
   };
 
@@ -124,13 +176,13 @@ export function DistrictOverview() {
         collectionCount: item.collectionCount ?? 0,
         processingCount: item.processingCount ?? 0,
         sales: 0,
-        amountReleased: item.amountReleased ?? 0,
+        amountReleased: item.revenue ?? 0,
         status: "Stable",
       }))
     : [];
 
-  const topCommodities = commodityPerf?.items?.slice(0, 5) ?? [];
   const hubs: HubItem[] = overview?.totalHubs ?? [];
+  const commodityRanking = Array.isArray(commodityRank) ? commodityRank : [];
   const totalSchemes = overview?.totalSchemes ?? 0;
   const totalVdvks = overview?.totalVdvks ?? 0;
   const totalBeneficiaries = overview?.totalBeneficiaries ?? 0;
@@ -147,27 +199,47 @@ export function DistrictOverview() {
     ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6 2xl:grid-cols-7"
     : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7";
 
-  const commodityColumns: ColumnDef<CommodityPerformance>[] = [
-    { accessorKey: "commodityName", header: "Commodity", cell: ({ getValue }) => <span className="font-semibold text-sm">{getValue<string>()}</span> },
-    { accessorKey: "commodityCode", header: "Code", cell: ({ getValue }) => <span className="font-mono text-xs text-gray-400">{getValue<string>()}</span> },
+  // Commodity Performance Ranking (per plan: Rank | Commodity | Collection |
+  // Processed | Unprocessed Stock | Sales | Revenue)
+  const rankingColumns: ColumnDef<Record<string, unknown>>[] = [
     {
-      accessorKey: "totalKg",
-      header: "Stock (Kg)",
-      cell: ({ getValue }) => <span className="font-mono text-sm font-medium">{Number(getValue()).toLocaleString()}</span>,
-    },
-    {
-      accessorKey: "totalPcs",
-      header: "Stock (Pcs)",
-      cell: ({ getValue }) => <span className="font-mono text-sm font-medium">{Number(getValue()).toLocaleString()}</span>,
-    },
-    {
-      accessorKey: "stockType",
-      header: "Type",
-      cell: ({ getValue }) => (
-        <span className={cn("text-xs font-semibold px-2.5 py-1 rounded-full border", getValue<string>() === "Raw" ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-emerald-50 text-emerald-700 border-emerald-200")}>
-          {getValue<string>()}
+      id: "rank",
+      header: "#",
+      cell: ({ row }) => (
+        <span className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-display bg-gray-100 text-gray-500">
+          {row.index + 1}
         </span>
       ),
+    },
+    {
+      accessorKey: "commodityName",
+      header: "Commodity",
+      cell: ({ getValue }) => <span className="font-semibold text-sm">{String(getValue() ?? "")}</span>,
+    },
+    {
+      accessorKey: "collectionKg",
+      header: "Collection (Kg)",
+      cell: ({ getValue }) => <span className="font-mono text-xs">{Number(getValue() ?? 0).toLocaleString()}</span>,
+    },
+    {
+      accessorKey: "processedKg",
+      header: "Processed (Kg)",
+      cell: ({ getValue }) => <span className="font-mono text-xs">{Number(getValue() ?? 0).toLocaleString()}</span>,
+    },
+    {
+      accessorKey: "unprocessedStockKg",
+      header: "Unprocessed (Kg)",
+      cell: ({ getValue }) => <span className="font-mono text-xs text-amber-600">{Number(getValue() ?? 0).toLocaleString()}</span>,
+    },
+    {
+      accessorKey: "salesKg",
+      header: "Sales (Kg)",
+      cell: ({ getValue }) => <span className="font-mono text-xs">{Number(getValue() ?? 0).toLocaleString()}</span>,
+    },
+    {
+      accessorKey: "revenue",
+      header: "Revenue (₹)",
+      cell: ({ getValue }) => <span className="font-mono text-xs font-semibold text-emerald-600">{Number(getValue() ?? 0).toLocaleString()}</span>,
     },
   ];
 
@@ -199,7 +271,7 @@ export function DistrictOverview() {
     },
     {
       accessorKey: "amountReleased",
-      header: "Released",
+      header: "Revenue",
       cell: ({ getValue }) => <span className="font-mono text-xs font-semibold text-emerald-600">Rs {Number(getValue()).toLocaleString()}</span>,
     },
   ];
@@ -275,16 +347,92 @@ export function DistrictOverview() {
         ))}
       </div>
 
+      {/* Charts: MFP Collection by Commodity + Operational Trend */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white rounded-xl border border-gray-100 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-display text-xl text-charcoal tracking-wide">MFP Collection by Commodity</h3>
+            <span className="text-[10px] font-black text-charcoal uppercase bg-golden px-3 py-1">Contribution %</span>
+          </div>
+          {chartCollLoading ? (
+            <div className="h-64 flex items-center justify-center"><PageLoading /></div>
+          ) : (
+            <CommodityCollectionChart data={chartCollection ?? []} />
+          )}
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-100 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-display text-xl text-charcoal tracking-wide">Sales, Collection & Processing Trend</h3>
+            <span className="text-[10px] font-black text-charcoal uppercase bg-sage px-3 py-1">Last 12 Months</span>
+          </div>
+          {chartTrendLoading ? (
+            <div className="h-72 flex items-center justify-center"><PageLoading /></div>
+          ) : (
+            <OperationalTrendChart data={chartTrend ?? []} />
+          )}
+        </div>
+      </div>
+
+      {/* Mandal Performance Cards */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-display text-xl text-charcoal tracking-wide">Mandal Performance</h3>
+          <span className="text-[10px] font-black text-charcoal uppercase bg-sage px-3 py-1">
+            {Array.isArray(mandalPerf) ? mandalPerf.length : 0} Mandals
+          </span>
+        </div>
+        {mandalLoading ? (
+          <div className="bg-white rounded-xl border border-gray-100 p-8"><PageLoading /></div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {Array.isArray(mandalPerf) && mandalPerf.map((m) => (
+              <div key={m.mandal} className="bg-white rounded-xl border border-gray-100 p-6 hover:shadow-sm transition-shadow">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="font-display text-lg text-charcoal">{m.mandal}</h4>
+                  <span className="text-[10px] font-black text-charcoal bg-golden px-2 py-0.5">
+                    {m.vdvks} VDVKs
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Beneficiaries</p>
+                    <p className="font-display text-lg text-charcoal">{Number(m.beneficiaries ?? 0).toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Collection</p>
+                    <p className="font-display text-lg text-sage-700">{(Number(m.collectionKg ?? 0) / 1000).toFixed(1)} MT</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Revenue</p>
+                    <p className="font-display text-lg text-emerald-600">₹ {Number(m.revenue ?? 0).toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Facilities</p>
+                    <p className="font-display text-lg text-charcoal">
+                      {Number(m.hubs ?? 0)}H · {Number(m.mpc ?? 0)}M · {Number(m.haatBazaars ?? 0)}B
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Commodity Table + Value Split */}
       <div className={cn("grid gap-6", isCollapsed ? "grid-cols-1 lg:grid-cols-3" : "grid-cols-1 lg:grid-cols-3")}>
         <div className="lg:col-span-2">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-display text-xl text-charcoal tracking-wide">Stock by Commodity</h3>
+            <h3 className="font-display text-xl text-charcoal tracking-wide">Commodity Performance Ranking</h3>
+            <span className="text-[10px] font-black text-charcoal uppercase bg-golden px-3 py-1">
+              By MFP Collection
+            </span>
           </div>
-          {commodityLoading ? (
+          {commodityRankLoading ? (
             <div className="bg-white rounded-xl border border-gray-100 p-8"><PageLoading /></div>
           ) : (
-            <DataTable columns={commodityColumns} data={topCommodities} pageSize={5} />
+            <DataTable columns={rankingColumns} data={commodityRanking.slice(0, 8)} pageSize={8} />
           )}
         </div>
 

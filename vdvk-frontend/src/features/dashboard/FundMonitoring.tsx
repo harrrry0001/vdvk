@@ -4,13 +4,16 @@ import { DataTable } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageLoading } from "@/components/shared/LoadingSpinner";
 import { type ColumnDef } from "@tanstack/react-table";
-import { Banknote, TrendingUp, Send, Wallet, AlertTriangle } from "lucide-react";
+import { Banknote, TrendingUp, Send, Wallet, AlertTriangle, Package, Factory } from "lucide-react";
 
 interface FundMonitoringResponse {
   totalSanctioned: number;
   totalReleased: number;
   totalExpenditure: number;
   balance: number;
+  totalRevenue: number;
+  totalCollectionKg: number;
+  totalProcessingKg: number;
   vdvkBreakdown: VdvkFundRow[];
 }
 
@@ -20,6 +23,11 @@ interface VdvkFundRow {
   scheme: string;
   sanctioned: number;
   released: number;
+  revenue?: number;
+  collectionKg?: number;
+  processingKg?: number;
+  utilised?: number;
+  balance?: number;
 }
 
 function formatLakhs(n: number): string {
@@ -55,6 +63,9 @@ export function FundMonitoring() {
   const totalReleased = data?.totalReleased ?? 0;
   const totalExpenditure = data?.totalExpenditure ?? 0;
   const balance = data?.balance ?? 0;
+  const totalRevenue = data?.totalRevenue ?? 0;
+  const totalCollectionKg = data?.totalCollectionKg ?? 0;
+  const totalProcessingKg = data?.totalProcessingKg ?? 0;
   const breakdown = data?.vdvkBreakdown ?? [];
 
   const releasePercent =
@@ -82,30 +93,41 @@ export function FundMonitoring() {
       ),
     },
     {
-      accessorKey: "released",
-      header: "Released",
+      accessorKey: "revenue",
+      header: "Sales Revenue",
       cell: ({ getValue }) => (
-        <span className="font-mono text-xs">{formatLakhs(getValue<number>())}</span>
+        <span className="font-mono text-xs font-semibold text-emerald-600">
+          {formatLakhs(Number(getValue<number>() ?? 0))}
+        </span>
       ),
     },
     {
-      id: "utilisation",
-      header: "Utilisation %",
-      cell: ({ row }) => {
-        const { sanctioned, released } = row.original;
-        const pct = sanctioned > 0 ? Math.round((released / sanctioned) * 100) : 0;
-        return (
-          <div className="flex items-center gap-2 min-w-[100px]">
-            <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-charcoal rounded-full"
-                style={{ width: `${pct}%` }}
-              />
-            </div>
-            <span className="font-mono text-[10px] tabular-nums">{pct}%</span>
-          </div>
-        );
-      },
+      accessorKey: "collectionKg",
+      header: "Collection (Kg)",
+      cell: ({ getValue }) => (
+        <span className="font-mono text-xs">{Number(getValue<number>() ?? 0).toLocaleString()}</span>
+      ),
+    },
+    {
+      accessorKey: "processingKg",
+      header: "Processing (Kg)",
+      cell: ({ getValue }) => (
+        <span className="font-mono text-xs">{Number(getValue<number>() ?? 0).toLocaleString()}</span>
+      ),
+    },
+    {
+      accessorKey: "utilised",
+      header: "Utilised",
+      cell: ({ getValue }) => (
+        <span className="font-mono text-xs text-sage-700">{formatLakhs(Number(getValue<number>() ?? 0))}</span>
+      ),
+    },
+    {
+      accessorKey: "balance",
+      header: "Balance Fund",
+      cell: ({ getValue }) => (
+        <span className="font-mono text-xs font-semibold text-charcoal">{formatLakhs(Number(getValue<number>() ?? 0))}</span>
+      ),
     },
   ];
 
@@ -196,6 +218,52 @@ export function FundMonitoring() {
           </div>
           <p className="mt-2 text-[10px] font-bold text-golden/60">
             Unspent Balance
+          </p>
+        </div>
+      </div>
+
+      {/* Operational KPI Row: Revenue, Collection, Processing */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white border-t-4 border-emerald-500 p-6 shadow-sm">
+          <div className="flex justify-between items-start mb-4">
+            <p className="text-[10px] font-black text-charcoal/40 uppercase tracking-widest">
+              Total Sales Revenue
+            </p>
+            <TrendingUp className="w-5 h-5 text-emerald-500" />
+          </div>
+          <h3 className="font-display text-4xl mb-4 text-charcoal">
+            {formatLakhs(totalRevenue)}
+          </h3>
+          <p className="text-[10px] font-bold text-gray-400">Approved Form 4 Sales</p>
+        </div>
+
+        <div className="bg-white border-t-4 border-sage p-6 shadow-sm">
+          <div className="flex justify-between items-start mb-4">
+            <p className="text-[10px] font-black text-charcoal/40 uppercase tracking-widest">
+              Total MFP Collection
+            </p>
+            <Package className="w-5 h-5 text-sage" />
+          </div>
+          <h3 className="font-display text-4xl mb-4 text-charcoal">
+            {(totalCollectionKg / 1000).toFixed(1)} MT
+          </h3>
+          <p className="text-[10px] font-bold text-gray-400">
+            {totalCollectionKg.toLocaleString()} Kg Approved Form 1
+          </p>
+        </div>
+
+        <div className="bg-white border-t-4 border-golden p-6 shadow-sm">
+          <div className="flex justify-between items-start mb-4">
+            <p className="text-[10px] font-black text-charcoal/40 uppercase tracking-widest">
+              Total Processing
+            </p>
+            <Factory className="w-5 h-5 text-golden-600" />
+          </div>
+          <h3 className="font-display text-4xl mb-4 text-charcoal">
+            {(totalProcessingKg / 1000).toFixed(1)} MT
+          </h3>
+          <p className="text-[10px] font-bold text-gray-400">
+            {totalProcessingKg.toLocaleString()} Kg Approved Form 3
           </p>
         </div>
       </div>

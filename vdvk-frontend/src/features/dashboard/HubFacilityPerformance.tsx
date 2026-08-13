@@ -10,12 +10,9 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { cn } from "@/lib/utils";
 import {
   Factory,
-  Wrench,
   Package,
-  IndianRupee,
   ArrowLeft,
   Search,
-  MapPin,
   CheckCircle2,
   AlertTriangle,
   XCircle,
@@ -40,6 +37,11 @@ interface Facility {
   status?: string;
   vdvkCount?: number;
   machineryCount?: number;
+  collectionKg?: number;
+  processingKg?: number;
+  rawSalesKg?: number;
+  processedSalesKg?: number;
+  revenue?: number;
 }
 
 function StatusBadge({ status }: { status?: string }) {
@@ -122,19 +124,41 @@ const hubColumns: ColumnDef<Facility, unknown>[] = [
     ),
   },
   {
-    accessorKey: "collectionVolume",
-    header: "Collection (₹)",
-    cell: () => <span className="font-bold">—</span>,
+    accessorKey: "collectionKg",
+    header: "Collection (Kg)",
+    cell: ({ getValue }) => (
+      <span className="font-mono text-xs">{Number(getValue() ?? 0).toLocaleString()}</span>
+    ),
   },
   {
-    accessorKey: "processingVolume",
-    header: "Processing (₹)",
-    cell: () => <span className="font-bold">—</span>,
+    accessorKey: "processingKg",
+    header: "Processing (Kg)",
+    cell: ({ getValue }) => (
+      <span className="font-mono text-xs">{Number(getValue() ?? 0).toLocaleString()}</span>
+    ),
+  },
+  {
+    accessorKey: "rawSalesKg",
+    header: "Raw Sales (Kg)",
+    cell: ({ getValue }) => (
+      <span className="font-mono text-xs">{Number(getValue() ?? 0).toLocaleString()}</span>
+    ),
+  },
+  {
+    accessorKey: "processedSalesKg",
+    header: "Processed Sales (Kg)",
+    cell: ({ getValue }) => (
+      <span className="font-mono text-xs">{Number(getValue() ?? 0).toLocaleString()}</span>
+    ),
   },
   {
     accessorKey: "revenue",
     header: "Revenue (₹)",
-    cell: () => <span className="font-bold">—</span>,
+    cell: ({ getValue }) => (
+      <span className="font-mono text-xs font-semibold text-emerald-600">
+        {Number(getValue() ?? 0).toLocaleString()}
+      </span>
+    ),
   },
   {
     accessorKey: "status",
@@ -177,9 +201,27 @@ const haatColumns: ColumnDef<Facility, unknown>[] = [
     ),
   },
   {
+    accessorKey: "collectionKg",
+    header: "Collection (Kg)",
+    cell: ({ getValue }) => (
+      <span className="font-mono text-xs">{Number(getValue() ?? 0).toLocaleString()}</span>
+    ),
+  },
+  {
+    accessorKey: "processingKg",
+    header: "Processing (Kg)",
+    cell: ({ getValue }) => (
+      <span className="font-mono text-xs">{Number(getValue() ?? 0).toLocaleString()}</span>
+    ),
+  },
+  {
     accessorKey: "revenue",
     header: "Revenue (₹)",
-    cell: () => <span className="font-bold">—</span>,
+    cell: ({ getValue }) => (
+      <span className="font-mono text-xs font-semibold text-emerald-600">
+        {Number(getValue() ?? 0).toLocaleString()}
+      </span>
+    ),
   },
   {
     accessorKey: "status",
@@ -231,7 +273,11 @@ const mpcColumns: ColumnDef<Facility, unknown>[] = [
   {
     accessorKey: "revenue",
     header: "Revenue (₹)",
-    cell: () => <span className="font-bold">—</span>,
+    cell: ({ getValue }) => (
+      <span className="font-mono text-xs font-semibold text-emerald-600">
+        {Number(getValue() ?? 0).toLocaleString()}
+      </span>
+    ),
   },
   {
     accessorKey: "status",
@@ -271,28 +317,48 @@ export function HubFacilityPerformance() {
     queryFn: () => dashboardApi.getMachinerySummary().then((r) => (Array.isArray(r.data) ? r.data : []) as { status: string; count: number }[]),
   });
 
+  const { data: facilityPerf, isLoading: perfLoading, isError: perfError, refetch: perfRefetch } = useQuery({
+    queryKey: ["dashboard", "facility-performance", activeTab],
+    queryFn: () => dashboardApi.getFacilityPerformance(activeTab).then((r) => r.data ?? []),
+  });
+
   const facilities = useMemo(() => {
     const arr = Array.isArray(facilitiesData) ? facilitiesData : [];
-    return arr.map((f: Record<string, unknown>) => ({
-      code: (f.code as string) ?? (f.facilityCode as string) ?? "",
-      name: (f.name as string) ?? (f.facilityName as string) ?? "",
-      type: (f.type as string) ?? activeTab,
-      mandal: (f.mandal as string) ?? "",
-      village: (f.village as string) ?? (f.location as string) ?? "",
-      location: (f.location as string) ?? (f.village as string) ?? "",
-      status: (f.status as string) ?? "active",
-      vdvkCount: (f.vdvkCount as number) ?? 0,
-      machineryCount: (f.machineryCount as number) ?? 0,
-    }));
-  }, [facilitiesData, activeTab]);
+    const perfArr = Array.isArray(facilityPerf) ? facilityPerf : [];
+    const perfByCode: Record<string, Record<string, unknown>> = {};
+    perfArr.forEach((p: Record<string, unknown>) => {
+      perfByCode[(p.code as string) ?? ""] = p;
+    });
+    return arr.map((f: Record<string, unknown>) => {
+      const code = (f.code as string) ?? (f.facilityCode as string) ?? "";
+      const p = perfByCode[code] ?? {};
+      return {
+        code,
+        name: (f.name as string) ?? (f.facilityName as string) ?? "",
+        type: (f.type as string) ?? activeTab,
+        mandal: (f.mandal as string) ?? (p.mandal as string) ?? "",
+        village: (f.village as string) ?? (f.location as string) ?? "",
+        location: (f.location as string) ?? (f.village as string) ?? "",
+        status: (f.status as string) ?? "active",
+        vdvkCount: Number(p.vdvksServed ?? f.vdvkCount ?? 0),
+        machineryCount: Number(p.machineryCount ?? f.machineryCount ?? 0),
+        collectionKg: Number(p.collectionKg ?? 0),
+        processingKg: Number(p.processingKg ?? 0),
+        rawSalesKg: Number(p.rawSalesKg ?? 0),
+        processedSalesKg: Number(p.processedSalesKg ?? 0),
+        revenue: Number(p.revenue ?? 0),
+      };
+    });
+  }, [facilitiesData, facilityPerf, activeTab]);
 
-  const isLoading = vdvkLoading || facilitiesLoading || machineryLoading;
-  const isError = vdvkError || facilitiesError || machineryError;
+  const isLoading = vdvkLoading || facilitiesLoading || machineryLoading || perfLoading;
+  const isError = vdvkError || facilitiesError || machineryError || perfError;
 
   const handleRetry = () => {
     vdvkRefetch();
     facilitiesRefetch();
     machineryRefetch();
+    perfRefetch();
   };
 
   if (isLoading) return <PageLoading />;
@@ -323,6 +389,9 @@ export function HubFacilityPerformance() {
   const availableMachinery = machinery["Available"] ?? 0;
 
   const totalVdvks = Array.isArray(vdvkData) ? vdvkData.length : 0;
+
+  const totalCollectionKg = facilities.reduce((s, f) => s + (f.collectionKg ?? 0), 0);
+  const totalRevenue = facilities.reduce((s, f) => s + (f.revenue ?? 0), 0);
 
   return (
     <div className="space-y-8">
@@ -374,16 +443,16 @@ export function HubFacilityPerformance() {
         />
         <KPICard
           label="Collection Volume"
-          value="—"
+          value={`${(totalCollectionKg / 1000).toFixed(1)} MT`}
           accent="green"
-          changeLabel="Metric not yet available"
+          changeLabel={`${totalCollectionKg.toLocaleString()} Kg`}
         />
         <KPICard
           label="Revenue Generated"
-          value="—"
+          value={`₹ ${totalRevenue.toLocaleString()}`}
           accent="yellow"
           className="bg-golden border-golden"
-          changeLabel="Metric not yet available"
+          changeLabel="Approved Sales"
         />
       </div>
 
@@ -472,6 +541,68 @@ export function HubFacilityPerformance() {
           </div>
 
           <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-golden/5 rounded-full" />
+        </div>
+
+        {/* Facility Rankings Leaderboard */}
+        <div className="mt-8 bg-white border border-charcoal/10 rounded-2xl overflow-hidden">
+          <div className="bg-charcoal px-6 py-4 flex items-center justify-between">
+            <h4 className="font-display text-lg tracking-tight text-golden">
+              {activeTab} RANKINGS
+            </h4>
+            <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">
+              Top 5
+            </span>
+          </div>
+          {(() => {
+            const ranked = [...facilities]
+              .map((f) => ({
+                ...f,
+                score: (f.vdvkCount ?? 0) * 2 + (f.machineryCount ?? 0),
+              }))
+              .sort((a, b) => b.score - a.score)
+              .slice(0, 5);
+            if (ranked.length === 0) {
+              return (
+                <div className="px-6 py-10 text-center">
+                  <Package className="w-8 h-8 text-charcoal/15 mx-auto mb-3" />
+                  <p className="text-xs font-bold text-charcoal/40 uppercase tracking-widest">
+                    No facilities to rank
+                  </p>
+                </div>
+              );
+            }
+            return (
+              <div className="divide-y divide-charcoal/5">
+                {ranked.map((f, i) => (
+                  <div key={f.code || f.name} className="flex items-center gap-4 px-6 py-4">
+                    <span
+                      className={cn(
+                        "w-8 h-8 rounded-full flex items-center justify-center font-display text-sm shrink-0",
+                        i < 3 ? "bg-golden text-charcoal" : "bg-gray-100 text-gray-500"
+                      )}
+                    >
+                      {i + 1}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-charcoal truncate">{f.name}</p>
+                      <p className="text-[10px] text-charcoal/40 uppercase tracking-wider truncate">
+                        {f.mandal || "—"} · {f.vdvkCount ?? 0} VDVKs · {f.machineryCount ?? 0} Mach
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <div className="w-16 bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                        <div
+                          className="bg-golden h-full rounded-full transition-all duration-700"
+                          style={{ width: `${Math.min(100, (f.score / (ranked[0]?.score || 1)) * 100)}%` }}
+                        />
+                      </div>
+                      <span className="text-[10px] font-mono font-bold text-charcoal/50">{f.score}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>
