@@ -20,6 +20,71 @@
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
+/* ── Global themed scrollbar (top-level, outside layers so it always ships) ── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #1e2622 transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: rgba(23, 30, 25, 0.06);
+}
+*::-webkit-scrollbar-thumb {
+  background: #1e2622;
+  border-radius: 0;
+  border: 2px solid #0e120f;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: #2a3a33;
+}
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Root scroll container fallback */
+html,
+body {
+  scrollbar-width: thin;
+  scrollbar-color: #1e2622 rgba(23, 30, 25, 0.06);
+}
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+html::-webkit-scrollbar-track,
+body::-webkit-scrollbar-track {
+  background: rgba(23, 30, 25, 0.06);
+}
+html::-webkit-scrollbar-thumb,
+body::-webkit-scrollbar-thumb {
+  background: #1e2622;
+  border-radius: 0;
+  border: 2px solid #0e120f;
+}
+html::-webkit-scrollbar-thumb:hover,
+body::-webkit-scrollbar-thumb:hover {
+  background: #2a3a33;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(23, 30, 25, 0.06);
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #1e2622;
+  border-radius: 0;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #2a3a33;
+}
+
 @layer base {
   * {
     margin: 0;
@@ -42,18 +107,6 @@
   ::selection {
     background: #ffe17c40;
     color: var(--color-charcoal);
-  }
-
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 4px;
-    height: 4px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #171e1920;
-    border-radius: 10px;
   }
 
   @view-transition {
