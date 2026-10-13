@@ -21,7 +21,7 @@ import { requireRole, HonoEnv} from "../../middleware/auth.js";
 export const dashboardRoutes = new Hono<HonoEnv>();
 
 // ─── DISTRICT OVERVIEW KPIs ───────────────────────────────────────────────
-dashboardRoutes.get("/district-overview", requireRole("PO", "APD", "DPM"), async (c) => {
+dashboardRoutes.get("/district-overview", requireRole("PO", "APD", "DPM", "APM", "MDA"), async (c) => {
   const [
     vdvkCount, benefCount, facilityCount,
     form1Approved, form3Approved, form4Approved,
@@ -50,7 +50,9 @@ dashboardRoutes.get("/district-overview", requireRole("PO", "APD", "DPM"), async
     .groupBy(facilityVdvkMapping.facilityCode);
   const hubVdvkCount: Record<string, number> = {};
   hubVdvkRows.forEach((r) => { hubVdvkCount[r.facilityCode] = r.c; });
-  const totalHubVdvks = hubVdvkRows.reduce((s, r) => s + r.c, 0) || 1;
+  // Denominator = VDVKs served by APPROVED HUBS only (facility_vdvk_mapping also
+  // covers MPCs/Haats/etc.; including those diluted every hub's share to ~21%).
+  const totalHubVdvks = hubRows.reduce((s, h) => s + (hubVdvkCount[h.code] || 0), 0) || 1;
   const hubs = hubRows.map((h) => {
     const vdvksServed = hubVdvkCount[h.code] || 0;
     return {
@@ -107,13 +109,15 @@ dashboardRoutes.get("/commodity-performance", async (c) => {
 
 // ─── VDVK PERFORMANCE RANKING ─────────────────────────────────────────────
 dashboardRoutes.get("/vdvk-performance", async (c) => {
-  const { mandal, limit = "10", sortBy = "collection", from, to } = c.req.query();
+  const { mandal, limit, sortBy = "collection", from, to } = c.req.query();
 
+  const vdvkConds = [eq(vdvks.status, "Approved")];
+  if (mandal) vdvkConds.push(eq(vdvks.mandal, mandal));
   const vdvkList = await db.select({
     code: vdvks.code, name: vdvks.name, mandal: vdvks.mandal,
     scheme: vdvks.schemeCode, beneficiaryCount: vdvks.beneficiaryCount,
     amountSanctioned: vdvks.amountSanctioned, amountReleased: vdvks.amountReleased,
-  }).from(vdvks).where(eq(vdvks.status, "Approved")).limit(Number(limit));
+  }).from(vdvks).where(and(...vdvkConds));
 
   // Sales revenue + sold qty by VDVK (approved Form 4)
   const salesConds = [eq(form4Sales.status, "Approved")];
@@ -139,26 +143,54 @@ dashboardRoutes.get("/vdvk-performance", async (c) => {
     };
   });
 
-  // For each VDVK, fetch collection/processing counts (with optional date filter)
-  const results = await Promise.all(vdvkList.map(async (v) => {
-    const collConds = [eq(form1Collections.vdvkCode, v.code), eq(form1Collections.status, "Approved")];
-    if (from) collConds.push(gte(form1Collections.collectionDate, from));
-    if (to) collConds.push(lte(form1Collections.collectionDate, to));
-    const [collCount] = await db.select({ c: count() }).from(form1Collections).where(and(...collConds));
+  // Collection counts by VDVK (one grouped query instead of a per-VDVK N+1)
+  const collConds = [eq(form1Collections.status, "Approved")];
+  if (from) collConds.push(gte(form1Collections.collectionDate, from));
+  if (to) collConds.push(lte(form1Collections.collectionDate, to));
+  const collCountRows = await db
+    .select({ vdvkCode: form1Collections.vdvkCode, c: count() })
+    .from(form1Collections)
+    .where(and(...collConds))
+    .groupBy(form1Collections.vdvkCode);
+  const collByVdvk: Record<string, number> = {};
+  collCountRows.forEach((r) => { collByVdvk[r.vdvkCode] = r.c; });
 
-    const procConds = [eq(form3Processing.status, "Approved"), eq(form3ProcessingItems.vdvkCode, v.code)];
-    if (from) procConds.push(gte(form3Processing.processingDate, from));
-    if (to) procConds.push(lte(form3Processing.processingDate, to));
-    const [procCount] = await db.select({ c: count() })
-      .from(form3ProcessingItems)
-      .innerJoin(form3Processing, eq(form3Processing.id, form3ProcessingItems.processingId))
-      .where(and(...procConds));
+  // Processing counts by VDVK (one grouped query)
+  const procConds = [eq(form3Processing.status, "Approved")];
+  if (from) procConds.push(gte(form3Processing.processingDate, from));
+  if (to) procConds.push(lte(form3Processing.processingDate, to));
+  const procCountRows = await db
+    .select({ vdvkCode: form3ProcessingItems.vdvkCode, c: count() })
+    .from(form3ProcessingItems)
+    .innerJoin(form3Processing, eq(form3Processing.id, form3ProcessingItems.processingId))
+    .where(and(...procConds))
+    .groupBy(form3ProcessingItems.vdvkCode);
+  const procByVdvk: Record<string, number> = {};
+  procCountRows.forEach((r) => { procByVdvk[r.vdvkCode] = r.c; });
 
+  const results = vdvkList.map((v) => {
     const s = salesByVdvk[v.code] || { revenue: 0, kg: 0, pcs: 0 };
-    return { ...v, collectionCount: collCount.c, processingCount: procCount.c, revenue: s.revenue, salesKg: s.kg, salesPcs: s.pcs };
-  }));
+    return {
+      ...v,
+      collectionCount: collByVdvk[v.code] || 0,
+      processingCount: procByVdvk[v.code] || 0,
+      revenue: s.revenue, salesKg: s.kg, salesPcs: s.pcs,
+    };
+  });
 
-  return c.json(results);
+  // Rank ordering — sortBy was previously accepted but ignored, so "rankings"
+  // came back in arbitrary insertion order.
+  const metricFns: Record<string, (r: (typeof results)[number]) => number> = {
+    collection: (r) => r.collectionCount,
+    processing: (r) => r.processingCount,
+    revenue: (r) => r.revenue,
+    sales: (r) => r.salesKg,
+  };
+  const metricFn = metricFns[sortBy] || metricFns.collection;
+  results.sort((a, b) => metricFn(b) - metricFn(a));
+
+  const lim = Number(limit) || 0;
+  return c.json(lim > 0 ? results.slice(0, lim) : results);
 });
 
 // ─── FUND MONITORING ──────────────────────────────────────────────────────
@@ -664,7 +696,7 @@ dashboardRoutes.get("/facility-performance", requireRole("PO", "APD", "DPM"), as
 // Per commodity: MFP Collection, Processed, Unprocessed Stock, Sales, Revenue.
 // Unprocessed Stock = Collection (F1) − Taken for Processing (F3)
 //                     − Direct Raw Material Sales (F4, productType = Raw).
-dashboardRoutes.get("/commodity-ranking", requireRole("PO", "APD", "DPM"), async (c) => {
+dashboardRoutes.get("/commodity-ranking", requireRole("PO", "APD", "DPM", "APM", "MDA"), async (c) => {
   const { from, to } = c.req.query();
 
   // Collection by commodity (approved Form 1)
@@ -769,7 +801,7 @@ dashboardRoutes.get("/commodity-ranking", requireRole("PO", "APD", "DPM"), async
 // ─── MANDAL PERFORMANCE CARDS ────────────────────────────────────────────
 // Per Mandal: VDVK count, beneficiaries, MFP collection, revenue, and counts
 // of Hubs / Multipurpose Centres / Haat Bazaars.
-dashboardRoutes.get("/mandal-performance", requireRole("PO", "APD", "DPM"), async (c) => {
+dashboardRoutes.get("/mandal-performance", requireRole("PO", "APD", "DPM", "APM", "MDA"), async (c) => {
   const [vdvkRows, benRows, facRows, collRows, salesRows, mandalRows] = await Promise.all([
     db.select({ mandal: vdvks.mandal, c: count() })
       .from(vdvks).where(eq(vdvks.status, "Approved")).groupBy(vdvks.mandal),
@@ -829,7 +861,7 @@ dashboardRoutes.get("/mandal-performance", requireRole("PO", "APD", "DPM"), asyn
 
 // ─── MACHINERY ANALYTICS ─────────────────────────────────────────────────
 // Value/cost, warranty, and deployment breakdowns for the assets dashboard.
-dashboardRoutes.get("/machinery-analytics", requireRole("PO", "APD", "DPM"), async (c) => {
+dashboardRoutes.get("/machinery-analytics", requireRole("PO", "APD", "DPM", "APM", "MDA"), async (c) => {
   // Cost by funding source
   const fundingRows = await db
     .select({ source: machTable.fundingSource, cost: sum(machTable.totalCost), c: count() })
@@ -886,7 +918,7 @@ dashboardRoutes.get("/machinery-analytics", requireRole("PO", "APD", "DPM"), asy
 // ─── COMMODITY × GRADE COLLECTION/SALES ──────────────────────────────────
 // Grade-wise MFP collection and sales so charts can break commodities down
 // by grade (A, B, C ...). Returns one row per commodity+grade.
-dashboardRoutes.get("/commodity-grade", requireRole("PO", "APD", "DPM"), async (c) => {
+dashboardRoutes.get("/commodity-grade", requireRole("PO", "APD", "DPM", "APM", "MDA"), async (c) => {
   const { from, to } = c.req.query();
 
   const collConds = [eq(form1Collections.status, "Approved")];
@@ -960,7 +992,7 @@ dashboardRoutes.get("/commodity-grade", requireRole("PO", "APD", "DPM"), async (
 
 // ─── SALES PRODUCT TYPE SPLIT ────────────────────────────────────────────
 // Raw vs Processed sales — revenue + quantity share for a donut chart.
-dashboardRoutes.get("/sales-product-type", requireRole("PO", "APD", "DPM"), async (c) => {
+dashboardRoutes.get("/sales-product-type", requireRole("PO", "APD", "DPM", "APM", "MDA"), async (c) => {
   const { from, to } = c.req.query();
   const conds = [eq(form4Sales.status, "Approved")];
   if (from) conds.push(gte(form4Sales.saleDate, from));
@@ -987,7 +1019,7 @@ dashboardRoutes.get("/sales-product-type", requireRole("PO", "APD", "DPM"), asyn
 });
 
 // ─── TOP CUSTOMERS BY REVENUE ────────────────────────────────────────────
-dashboardRoutes.get("/top-customers", requireRole("PO", "APD", "DPM"), async (c) => {
+dashboardRoutes.get("/top-customers", requireRole("PO", "APD", "DPM", "APM", "MDA"), async (c) => {
   const { from, to, limit = "8" } = c.req.query();
   const conds = [eq(form4Sales.status, "Approved")];
   if (from) conds.push(gte(form4Sales.saleDate, from));

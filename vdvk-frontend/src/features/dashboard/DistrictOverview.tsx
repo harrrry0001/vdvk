@@ -70,8 +70,8 @@ interface VdvkRankingRow {
 export function DistrictOverview() {
   const [activeFilter, setActiveFilter] = useState("Month");
   const { isCollapsed } = useSidebarStore();
-  const { isManagement, isAPM, isFieldUser } = useAuth();
-  const canViewFull = isManagement || isAPM;
+  const { isManagement, isAPM, isFieldUser, isAdmin } = useAuth();
+  const canViewFull = isManagement || isAPM || isAdmin;
 
   const { data: overview, isLoading: overviewLoading, isError: overviewError, refetch: overviewRefetch } = useQuery({
     queryKey: ["dashboard", "district-overview"],
