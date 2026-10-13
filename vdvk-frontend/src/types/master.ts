@@ -136,14 +136,34 @@ export interface Facility {
   status: string;
 }
 
+/** Machinery Master (Input Form 7) — shape returned by GET /forms/form7 */
 export interface Machinery {
   id: string;
   name: string;
-  commodityMapping?: Record<string, unknown>;
-  location?: string;
-  cost?: number;
-  warrantyMonths?: number;
+  commodityMapping?: string[];
+  currentFacilityCode?: string;
+  currentVdvkCode?: string;
+  installationLocation?: string;
+  mandal?: string;
+  quantity?: number;
+  unitCost?: number;
+  totalCost?: number;
   purchaseDate?: string;
+  supplierCode?: string;
+  supplierNameSnapshot?: string;
+  supplierContactPerson?: string;
+  supplierMobile?: string;
+  supplierEmail?: string;
+  warrantyAvailable?: boolean;
+  warrantyType?: string;
+  warrantyPeriod?: string;
+  warrantyStartDate?: string;
+  warrantyExpiryDate?: string;
+  fundingSource?: string;
+  reasonPurpose?: string;
+  currentStatus: string;
+  lastServiceDate?: string;
+  nextServiceDueDate?: string;
   status: string;
 }
 

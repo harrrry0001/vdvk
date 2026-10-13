@@ -124,8 +124,13 @@ form7Routes.get("/", async (c) => {
   const rows = await db.select({
     id: machTable.id, name: machTable.name, commodityMapping: machTable.commodityMapping,
     currentFacilityCode: machTable.currentFacilityCode, currentVdvkCode: machTable.currentVdvkCode,
+    installationLocation: machTable.installationLocation,
     mandal: machTable.mandal, quantity: machTable.quantity,
     unitCost: machTable.unitCost, totalCost: machTable.totalCost, purchaseDate: machTable.purchaseDate,
+    supplierNameSnapshot: machTable.supplierNameSnapshot,
+    supplierContactPerson: machTable.supplierContactPerson, supplierMobile: machTable.supplierMobile,
+    warrantyAvailable: machTable.warrantyAvailable, warrantyExpiryDate: machTable.warrantyExpiryDate,
+    lastServiceDate: machTable.lastServiceDate, nextServiceDueDate: machTable.nextServiceDueDate,
     fundingSource: machTable.fundingSource, currentStatus: machTable.currentStatus,
     status: machTable.status, approvedBy: machTable.approvedBy, approvedAt: machTable.approvedAt,
     createdBy: machTable.createdBy, createdAt: machTable.createdAt, updatedAt: machTable.updatedAt,

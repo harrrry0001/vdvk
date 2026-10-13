@@ -7,6 +7,7 @@ repo code** — everything lives in this folder and merges in via
 
 ```
 integration/
+├── VDVK MFP Detials.xls         # ★ ITDA operational-status snapshot (→ vdvk_mfp_baseline, §9)
 ├── tools/                       # offline converters (Node, no DB needed)
 │   ├── extract.mjs              # unzip the 6 archives → data/raw/
 │   ├── convert-members.mjs      # ★ core: Excel → members CSVs + reports
@@ -36,6 +37,7 @@ integration/
     ├── full-reset-seed.libsql.cjs  # ★ canonical seed.cjs port for Turso (fresh reset)
     ├── apply-extension-libsql.cjs  # +15 columns + canonical indexes (SQLite DDL)
     ├── import-members.libsql.cjs   # ★ ★ THE LOADER THAT RAN — libSQL member load
+    ├── import-mfp-baseline.libsql.cjs  # ★ MFP operational-status baseline loader (§9)
     ├── verify-load.mjs          # post-load verification vs the report
     ├── wipe-members.cjs         # remove loaded members for a clean re-load
     └── probe-turso.mjs          # read-only DB inventory
@@ -50,7 +52,8 @@ integration/
 | **Per-VDVK files** (`…/Pedabayalu/…`, `…/Paderu/…`, one folder per mandal) | Full 47-column member sheets per VDVK: name, age, gender, mobile, Aadhaar, address, village, `Name of Proposed VDVK`, … |
 | **District-wide files** (`ANANTHAGIRT MANDAL…`, `ARAKU VALLEY…`, `BANGARUMETTA VDVK FINAL.xls`, …) | The same members re-listed per mandal — overlapping copies of the per-VDVK data |
 | **`VDVKs Member Wise Data Report.xlsx`** | Official report: expected member count (≈300) per VDVK — used as the coverage baseline |
-| `VDVK - Faciltiy Master / MACHINERY / MFP / New Machinery` | Facility/machinery masters (not members — not converted here) |
+| `VDVK - Faciltiy Master / MACHINERY / New Machinery`, `OPERATIONAL VDVKs` | Facility/machinery/status masters (not members — not converted) |
+| **`VDVK MFP Detials.xls`** | Per-VDVK operational-status snapshot → integrated as `vdvk_mfp_baseline` (§9) |
 
 Quirks handled by the converter: headerless continuation sheets (template
 header from the NGO workbook), header rows that are *not* row 1, style-inflated
@@ -260,3 +263,41 @@ no `BEN-001`, so Form 1/2/3 creates failed with `FOREIGN KEY constraint
 failed`. The specs now resolve a real member at runtime via
 `tests/helpers/data.ts` (`memberOf("VDVK-001")`); the temporary `BEN-001`
 fixture row and its test-residue transactions were removed from Turso.
+
+---
+
+## 9. MFP operational-status baseline — 2026-10-13
+
+`VDVK MFP Detials.xls` (sheet "MFP Report", 101 data rows) is the ITDA report
+**"Operational Status of (JVM) VDVKS"**: one row per VDVK with its dealing
+MFP/final-product list, field coordinator (CC) name + mobile, and cumulative
+**MFP collected / processed / sales revenue / profit "from the date of
+establishment"** — i.e. performance history that predates this MIS. It is not
+member data, which is why the member pipeline (§2) never read it.
+
+It is loaded into its own table **`vdvk_mfp_baseline`**
+(`vdvk-backend/src/db/schema/master/vdvk-mfp-baseline.ts`, migration
+`0001_elite_arachne.sql`) — deliberately *not* into `stock_ledger`/forms, which
+must only contain MIS-recorded transactions. Free-text figures keep their raw
+cell in `collected_raw`/`processed_raw`/… alongside a best-effort numeric
+(`parse_status`: `parsed` plain number · `derived` heuristic · `partial` some
+column had no figure).
+
+| Step | Result |
+|---|---|
+| `drizzle-kit push` + `db:generate` | table + `idx_mfp_baseline_vdvk`, `idx_mfp_baseline_mandal`, `uq_mfp_baseline_source`. One cosmetic exception: drizzle-kit 0.24.2 can't diff SQLite **partial** indexes, so every push also re-applies the identical `uq_rate_active … WHERE effective_to IS NULL` statement — verified harmless (DB and schema both carry the predicate; rows untouched) |
+| `import-mfp-baseline.libsql.cjs` | 101 rows read → **100 matched** (71 exact, 14 fuzzy d1–d2, 7 contains, 7 aliases, 1 contains-best). The 1 without a code: r43 "G K Veedhi" is the same entity double-listed beside r42 "G K Veedhi FPO VDVK" → VDK-039 keeps the code, the twin keeps its source row with `vdvk_code = NULL` + `matchHow = duplicate:VDK-039@r42` |
+| Baseline totals | collected 94,314 · processed 241,615 · revenue ₹12,98,900 · profit ₹3,77,205 |
+| Parse quality | 77 `parsed`, 20 `derived` (`"20000 (500 KGs)"→500`, `"300x15000"→300`, `"Loss 70800"→−70800`), 4 `partial` (`"Adda Leaf"` = product, no figure) |
+| Idempotency | re-run deletes by `source_file` first → identical 101 rows/totals |
+
+Matching is **mandal-scoped** (alias → exact normalized → unique containment →
+Levenshtein ≤ 2), so Paderu's *Vantlamamidi* (VDK-094) stays apart from G
+Madugula's *Vantlamamidi* (VDK-046), and the `Pedakodapalli` twins are split by
+alias (`Peda Kodapalli`→VDK-101, `P Kodapalli (Manyam)`→VDK-103). Known
+spellings are pinned in `MFP_ALIASES` at the top of the loader.
+
+```bash
+node import-mfp-baseline.libsql.cjs --dry-run --verbose   # plan + full mapping review
+node import-mfp-baseline.libsql.cjs                        # load (idempotent)
+```

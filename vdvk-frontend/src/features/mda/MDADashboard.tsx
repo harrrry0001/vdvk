@@ -109,7 +109,9 @@ export function MDADashboard() {
     );
   }
 
-  const machineryCount = machinery?.total ?? machinery?.length ?? 0;
+  const machineryCount = Array.isArray(machinery)
+    ? (machinery as { count?: number }[]).reduce((sum, s) => sum + (s.count ?? 0), 0)
+    : (machinery as { total?: number })?.total ?? 0;
 
   const adminCards = [
     { label: "VDVK Master", count: (vdvks as unknown[])?.length, path: "/mda/vdvks", icon: Factory, action: "Manage Unit" },

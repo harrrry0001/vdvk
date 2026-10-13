@@ -3,6 +3,7 @@ export * from "./master/geo-hierarchy";
 export * from "./master/commodity-grade-rate";
 export * from "./master/scheme-exphead-customer-supplier";
 export * from "./master/vdvk-beneficiary";
+export * from "./master/vdvk-mfp-baseline";
 export * from "./master/facility";
 export * from "./master/machinery";
 export * from "./master/user";

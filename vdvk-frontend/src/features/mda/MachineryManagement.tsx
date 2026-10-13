@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { masterApi } from "@/api/endpoints/master";
 import { mdaApi } from "@/api/endpoints/mda";
 import { formsApi } from "@/api/endpoints/forms";
+import type { Machinery } from "@/types/master";
 import {
   Wrench,
   Search,
@@ -35,34 +36,6 @@ import {
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
-
-interface Machinery {
-  id: string;
-  name: string;
-  commodityMapping: string[];
-  currentFacilityCode?: string;
-  currentVdvkCode?: string;
-  installationLocation?: string;
-  mandal: string;
-  quantity: number;
-  unitCost: number;
-  totalCost: number;
-  purchaseDate: string;
-  supplierCode?: string;
-  supplierNameSnapshot?: string;
-  supplierContactPerson?: string;
-  supplierMobile?: string;
-  supplierEmail?: string;
-  warrantyAvailable?: boolean;
-  warrantyType?: string;
-  warrantyPeriod?: string;
-  warrantyStartDate?: string;
-  warrantyExpiryDate?: string;
-  fundingSource?: string;
-  reasonPurpose?: string;
-  currentStatus: string;
-  status: string;
-}
 
 interface Facility {
   code: string;
@@ -182,7 +155,7 @@ const STATUS_VARIANTS: Record<string, string> = {
 
 export function MachineryManagement() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"register" | "inventory" | "transfer">("register");
+  const [activeTab, setActiveTab] = useState<"register" | "inventory" | "transfer">("inventory");
   const [notif, setNotif] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const [searchText, setSearchText] = useState("");
 

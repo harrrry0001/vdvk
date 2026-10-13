@@ -22,6 +22,8 @@ const statusStyles: Record<string, string> = {
   Available: "bg-green-50 text-green-600 border-green-200",
   "In Use": "bg-blue-50 text-blue-600 border-blue-200",
   Idle: "bg-amber-50 text-amber-600 border-amber-200",
+  "Under Maintenance": "bg-purple-50 text-purple-600 border-purple-200",
+  "Out of Service": "bg-red-50 text-red-600 border-red-200",
 };
 
 interface StatusBadgeProps {
