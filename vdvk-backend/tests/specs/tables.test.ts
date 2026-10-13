@@ -2,21 +2,25 @@ import { describe, expect, it } from "vitest";
 import { expectStatus } from "../helpers/client.js";
 import { tokenFor } from "../helpers/auth.js";
 import { today, uniq } from "../helpers/ctx.js";
+import { memberOf } from "../helpers/data.js";
 import { app } from "../../src/app.js";
 
-const form1Body = {
-  vdvkCode: "VDK-001", vdvkNameSnapshot: "Rampachodavaram VDVK",
-  collectionDate: today(), placeOfSubmission: "VDVK Facility",
-  transactionType: "Cash", overallRemarks: "tables-test",
-  items: [{
-    beneficiaryId: "BEN-001", beneficiaryNameSnapshot: "Ramu",
-    commodityCode: "CMD-001", commodityNameSnapshot: "Turmeric",
-    gradeCode: "GRD-001", gradeNameSnapshot: "A",
-    unit: "Kg", unitSnapshot: "Kg",
-    qtyKg: 5, qtyPieces: null, ratePerKg: 120, ratePerPiece: null,
-    rateSnapshot: "120", totalCost: 600, remarks: null,
-  }],
-};
+async function form1Body() {
+  const ben = await memberOf("VDK-001");
+  return {
+    vdvkCode: "VDK-001", vdvkNameSnapshot: "Rampachodavaram VDVK",
+    collectionDate: today(), placeOfSubmission: "VDVK Facility",
+    transactionType: "Cash", overallRemarks: "tables-test",
+    items: [{
+      beneficiaryId: ben.id, beneficiaryNameSnapshot: ben.name,
+      commodityCode: "CMD-001", commodityNameSnapshot: "Turmeric",
+      gradeCode: "GRD-001", gradeNameSnapshot: "A",
+      unit: "Kg", unitSnapshot: "Kg",
+      qtyKg: 5, qtyPieces: null, ratePerKg: 120, ratePerPiece: null,
+      rateSnapshot: "120", totalCost: 600, remarks: null,
+    }],
+  };
+}
 
 function csvUpload(path: string, token: string, csv: string, name: string) {
   const fd = new FormData();
@@ -35,7 +39,7 @@ describe("TABLE USAGE: movement log, packaging, facility maps, ben-commodities, 
     const apm = await tokenFor("apm");
     const po = await tokenFor("po");
 
-    const created = await expectStatus("POST", "/api/forms/form1", 201, { token: cc, body: form1Body });
+    const created = await expectStatus("POST", "/api/forms/form1", 201, { token: cc, body: await form1Body() });
     const id = created.body.id;
     await expectStatus("PATCH", `/api/forms/form1/${id}/submit`, 200, { token: cc });
     await expectStatus("PATCH", `/api/forms/form1/${id}/approve`, 200, { token: apm, body: { approved: true } });
@@ -62,12 +66,13 @@ describe("TABLE USAGE: movement log, packaging, facility maps, ben-commodities, 
   // ─── PACKAGING: FORM 3 + FORM 4 ────────────────────────────────────────
   it("PACKAGING: form3 packaging is persisted and returned in detail", async () => {
     const sup = await tokenFor("hubsup");
+    const ben = await memberOf("VDK-001");
     const body = {
       processingLocationCode: "FAC-HUB-001", processingLocationNameSnapshot: "Rampachodavaram Hub",
       processingDate: today(), overallRemarks: "packaging-test",
       items: [{
         vdvkCode: "VDK-001", vdvkNameSnapshot: "Rampachodavaram VDVK",
-        beneficiaryId: "BEN-001", beneficiaryNameSnapshot: "Ramu",
+        beneficiaryId: ben.id, beneficiaryNameSnapshot: ben.name,
         commodityCode: "CMD-001", commodityNameSnapshot: "Turmeric",
         gradeCode: "GRD-001", gradeNameSnapshot: "A",
         unit: "Kg",

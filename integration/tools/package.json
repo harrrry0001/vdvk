@@ -1,0 +1,16 @@
+{
+  "name": "vdvk-integration-tools",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Data-preparation tools for loading real VDVK member data into the VDVK MIS backend",
+  "scripts": {
+    "extract": "node extract.mjs",
+    "convert": "node convert-members.mjs",
+    "prepare-data": "node extract.mjs && node convert-members.mjs"
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.16",
+    "xlsx": "^0.18.5"
+  }
+}

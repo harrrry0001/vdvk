@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { api, expectStatus } from "../helpers/client.js";
 import { tokenFor } from "../helpers/auth.js";
 import { today, tomorrow, uniq } from "../helpers/ctx.js";
+import { memberOf } from "../helpers/data.js";
 
 /**
  * End-to-end lifecycle tests for Forms 1-12.
@@ -12,13 +13,14 @@ describe("FORMS 1-12", () => {
   it("FORM 1 (Collection, CC → APM): create → edit → submit → approve", async () => {
     const cc = await tokenFor("cc");
     const apm = await tokenFor("apm");
+    const ben = await memberOf("VDK-001");
 
     const body = {
       vdvkCode: "VDK-001", vdvkNameSnapshot: "Rampachodavaram VDVK",
       collectionDate: today(), placeOfSubmission: "VDVK Facility",
       transactionType: "Cash", overallRemarks: "integration-test",
       items: [{
-        beneficiaryId: "BEN-001", beneficiaryNameSnapshot: "Ramu",
+        beneficiaryId: ben.id, beneficiaryNameSnapshot: ben.name,
         commodityCode: "CMD-001", commodityNameSnapshot: "Turmeric",
         gradeCode: "GRD-001", gradeNameSnapshot: "A",
         unit: "Kg", unitSnapshot: "Kg",
@@ -60,6 +62,7 @@ describe("FORMS 1-12", () => {
   it("FORM 2 (Stock Transfer, Supervisor → APM): create → submit → approve", async () => {
     const sup = await tokenFor("hubsup");
     const apm = await tokenFor("apm");
+    const ben = await memberOf("VDK-001");
     const body = {
       transferDate: today(),
       sentFromFacilityCode: "FAC-HUB-001", sentFromNameSnapshot: "Rampachodavaram Hub",
@@ -68,7 +71,7 @@ describe("FORMS 1-12", () => {
       overallRemarks: "integration-test",
       items: [{
         vdvkCode: "VDK-001", vdvkNameSnapshot: "Rampachodavaram VDVK",
-        beneficiaryId: "BEN-001", beneficiaryNameSnapshot: "Ramu",
+        beneficiaryId: ben.id, beneficiaryNameSnapshot: ben.name,
         commodityCode: "CMD-001", commodityNameSnapshot: "Turmeric",
         gradeCode: "GRD-001", gradeNameSnapshot: "A",
         goodsType: "Raw", unit: "Kg",
@@ -86,12 +89,13 @@ describe("FORMS 1-12", () => {
   it("FORM 3 (Processing, Supervisor → APM): create → submit → approve", async () => {
     const sup = await tokenFor("hubsup");
     const apm = await tokenFor("apm");
+    const ben = await memberOf("VDK-001");
     const body = {
       processingLocationCode: "FAC-HUB-001", processingLocationNameSnapshot: "Rampachodavaram Hub",
       processingDate: today(), overallRemarks: "integration-test",
       items: [{
         vdvkCode: "VDK-001", vdvkNameSnapshot: "Rampachodavaram VDVK",
-        beneficiaryId: "BEN-001", beneficiaryNameSnapshot: "Ramu",
+        beneficiaryId: ben.id, beneficiaryNameSnapshot: ben.name,
         commodityCode: "CMD-001", commodityNameSnapshot: "Turmeric",
         gradeCode: "GRD-001", gradeNameSnapshot: "A",
         unit: "Kg",

@@ -1,20 +1,20 @@
-import { boolean, index, integer, jsonb, pgTable, serial, text, varchar } from "drizzle-orm/pg-core";
+import { integer, index, text, sqliteTable } from "drizzle-orm/sqlite-core";
 
 // ─── AUDIT TRAIL ──────────────────────────────────────────────────────────
-export const auditTrail = pgTable("audit_trail", {
-  id: varchar("id", { length: 64 }).primaryKey(),
-  transactionId: varchar("transaction_id", { length: 500 }).notNull(),
+export const auditTrail = sqliteTable("audit_trail", {
+  id: text("id").primaryKey(),
+  transactionId: text("transaction_id").notNull(),
   formType: text("form_type").notNull(),
   action: text("action").notNull(),
-  performedBy: varchar("performed_by", { length: 64 }),
-  performerRoleSnapshot: varchar("performer_role_snapshot", { length: 64 }),
-  performedAt: varchar("performed_at", { length: 64 }).$defaultFn(() => new Date().toISOString()),
-  oldValues: jsonb("old_values"),
-  newValues: jsonb("new_values"),
-  remarks: varchar("remarks", { length: 500 }),
-  escalated: boolean("escalated").notNull().default(false),
-  escalatedTo: varchar("escalated_to", { length: 64 }),
-  createdAt: varchar("created_at", { length: 64 }).$defaultFn(() => new Date().toISOString()),
+  performedBy: text("performed_by"),
+  performerRoleSnapshot: text("performer_role_snapshot"),
+  performedAt: text("performed_at").$defaultFn(() => new Date().toISOString()),
+  oldValues: text("old_values", { mode: "json" }),
+  newValues: text("new_values", { mode: "json" }),
+  remarks: text("remarks"),
+  escalated: integer("escalated", { mode: "boolean" }).notNull().default(false),
+  escalatedTo: text("escalated_to"),
+  createdAt: text("created_at").$defaultFn(() => new Date().toISOString()),
 }, (t) => ({
   idx_audit_txn: index("idx_audit_txn").on(t.transactionId),
   idx_audit_form_type: index("idx_audit_form_type").on(t.formType),
@@ -24,16 +24,16 @@ export const auditTrail = pgTable("audit_trail", {
 }));
 
 // ─── NOTIFICATIONS ───────────────────────────────────────────────────────
-export const notifications = pgTable("notifications", {
-  id: varchar("id", { length: 64 }).primaryKey(),
-  recipientUserId: varchar("recipient_user_id", { length: 64 }).notNull(),
+export const notifications = sqliteTable("notifications", {
+  id: text("id").primaryKey(),
+  recipientUserId: text("recipient_user_id").notNull(),
   type: text("type").notNull(),
-  title: varchar("title", { length: 191 }).notNull(),
-  body: varchar("body", { length: 500 }).notNull(),
-  relatedTransactionId: varchar("related_transaction_id", { length: 500 }),
-  isRead: boolean("is_read").notNull().default(false),
-  readAt: varchar("read_at", { length: 64 }),
-  createdAt: varchar("created_at", { length: 64 }).$defaultFn(() => new Date().toISOString()),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  relatedTransactionId: text("related_transaction_id"),
+  isRead: integer("is_read", { mode: "boolean" }).notNull().default(false),
+  readAt: text("read_at"),
+  createdAt: text("created_at").$defaultFn(() => new Date().toISOString()),
 }, (t) => ({
   idx_notif_user: index("idx_notif_user").on(t.recipientUserId),
   idx_notif_read: index("idx_notif_read").on(t.isRead),
@@ -41,59 +41,59 @@ export const notifications = pgTable("notifications", {
 }));
 
 // ─── NOTIFICATION LOG (APPEND-ONLY) ──────────────────────────────────────
-export const notificationLog = pgTable("notification_log", {
-  id: serial("id").primaryKey(),
-  notificationId: varchar("notification_id", { length: 64 }),
+export const notificationLog = sqliteTable("notification_log", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  notificationId: text("notification_id"),
   channel: text("channel").notNull(),
-  recipientEmail: varchar("recipient_email", { length: 191 }),
-  sentAt: varchar("sent_at", { length: 64 }).$defaultFn(() => new Date().toISOString()),
+  recipientEmail: text("recipient_email"),
+  sentAt: text("sent_at").$defaultFn(() => new Date().toISOString()),
   status: text("status").notNull().default("SENT"),
-  errorMessage: varchar("error_message", { length: 500 }),
-  createdAt: varchar("created_at", { length: 64 }).$defaultFn(() => new Date().toISOString()),
+  errorMessage: text("error_message"),
+  createdAt: text("created_at").$defaultFn(() => new Date().toISOString()),
 }, (t) => ({
   idx_notif_log_notif: index("idx_notif_log_notif").on(t.notificationId),
 }));
 
 // ─── REJECTED RECORDS TABLE ──────────────────────────────────────────────
-export const rejectedRecords = pgTable("rejected_records", {
-  id: serial("id").primaryKey(),
-  originalTransactionId: varchar("original_transaction_id", { length: 500 }).notNull(),
+export const rejectedRecords = sqliteTable("rejected_records", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  originalTransactionId: text("original_transaction_id").notNull(),
   formType: text("form_type").notNull(),
-  rejectedData: jsonb("rejected_data").notNull(),
-  rejectedBy: varchar("rejected_by", { length: 64 }),
-  rejectionRemarks: varchar("rejection_remarks", { length: 500 }),
-  rejectedAt: varchar("rejected_at", { length: 64 }),
-  resubmittedAs: varchar("resubmitted_as", { length: 64 }),
-  createdAt: varchar("created_at", { length: 64 }).$defaultFn(() => new Date().toISOString()),
+  rejectedData: text("rejected_data", { mode: "json" }).notNull(),
+  rejectedBy: text("rejected_by"),
+  rejectionRemarks: text("rejection_remarks"),
+  rejectedAt: text("rejected_at"),
+  resubmittedAs: text("resubmitted_as"),
+  createdAt: text("created_at").$defaultFn(() => new Date().toISOString()),
 }, (t) => ({
   idx_rejected_txn: index("idx_rejected_txn").on(t.originalTransactionId),
   idx_rejected_form: index("idx_rejected_form").on(t.formType),
 }));
 
 // ─── EMAIL TEMPLATES ─────────────────────────────────────────────────────
-export const emailTemplates = pgTable("email_templates", {
-  id: serial("id").primaryKey(),
-  templateKey: varchar("template_key", { length: 64 }).notNull().unique(),
-  subject: varchar("subject", { length: 191 }).notNull(),
-  bodyHtml: varchar("body_html", { length: 1000 }).notNull(),
-  updatedAt: varchar("updated_at", { length: 64 }).$defaultFn(() => new Date().toISOString()),
+export const emailTemplates = sqliteTable("email_templates", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  templateKey: text("template_key").notNull().unique(),
+  subject: text("subject").notNull(),
+  bodyHtml: text("body_html").notNull(),
+  updatedAt: text("updated_at").$defaultFn(() => new Date().toISOString()),
 });
 
 // ─── SYSTEM CONFIGURATION ────────────────────────────────────────────────
-export const systemConfig = pgTable("system_config", {
-  key: varchar("key", { length: 64 }).primaryKey(),
-  value: varchar("value", { length: 500 }).notNull(),
-  description: varchar("description", { length: 500 }),
-  updatedAt: varchar("updated_at", { length: 64 }).$defaultFn(() => new Date().toISOString()),
+export const systemConfig = sqliteTable("system_config", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  description: text("description"),
+  updatedAt: text("updated_at").$defaultFn(() => new Date().toISOString()),
 });
 
 // ─── MIGRATION LOG ───────────────────────────────────────────────────────
-export const migrationLog = pgTable("migration_log", {
-  id: serial("id").primaryKey(),
-  entity: varchar("entity", { length: 64 }).notNull(),
+export const migrationLog = sqliteTable("migration_log", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  entity: text("entity").notNull(),
   recordCount: integer("record_count").notNull(),
-  migratedBy: varchar("migrated_by", { length: 64 }).notNull(),
-  sourceFile: varchar("source_file", { length: 500 }),
-  remarks: varchar("remarks", { length: 500 }),
-  createdAt: varchar("created_at", { length: 64 }).$defaultFn(() => new Date().toISOString()),
+  migratedBy: text("migrated_by").notNull(),
+  sourceFile: text("source_file"),
+  remarks: text("remarks"),
+  createdAt: text("created_at").$defaultFn(() => new Date().toISOString()),
 });

@@ -1,20 +1,18 @@
 import { defineConfig } from "drizzle-kit";
-import { existsSync } from "node:fs";
-import { resolve } from "node:path";
+import "dotenv/config";
 
-const caPath = resolve(process.env.DATABASE_CA_CERT ?? "ca.pem");
-const baseUrl = process.env.DATABASE_URL!;
-// drizzle-kit's pg driver only honors SSL options embedded in the URL
-// (pg-connection-string reads sslmode/sslrootcert and loads the CA itself).
-const url = existsSync(caPath)
-  ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}sslmode=verify-full&sslrootcert=${encodeURIComponent(caPath)}`
-  : `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}sslmode=require`;
+// Turso (libSQL) — drizzle-kit's sqlite/turso driver.
+// `npm run db:push` diffs src/db/schema against the live Turso database.
+const url = process.env.TURSO_DATABASE_URL;
+if (!url) throw new Error("TURSO_DATABASE_URL is required");
 
 export default defineConfig({
   schema: "./src/db/schema/index.ts",
   out: "./src/db/migrations",
-  dialect: "postgresql",
+  dialect: "sqlite",
+  driver: "turso",
   dbCredentials: {
     url,
+    authToken: process.env.TURSO_AUTH_TOKEN,
   },
 });

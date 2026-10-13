@@ -1,0 +1,12 @@
+{
+  "name": "vdvk",
+  "private": true,
+  "workspaces": [
+    "vdvk-backend",
+    "vdvk-frontend"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace vdvk-frontend",
+    "start": "npm run start --workspace vdvk-backend"
+  }
+}

@@ -5,9 +5,7 @@ node_modules/
 dist/
 dist-ssr/
 
-# ─── Environment & secrets ──────────────────────────────────────────────────
-.env
-.env.*
+# ─── Environment & secrets ─────────────────────────────────────────────────
 !.env.example
 *.pem
 *.key
@@ -49,9 +47,19 @@ Desktop.ini
 .superdesign/
 opencode.json
 
+# Root workspaces lockfile: Windows-generated lockfiles prune Linux platform
+# bindings (npm/cli#4828) and break Railway's Linux builds. The Railway
+# builder resolves fresh instead; per-app lockfiles remain the source of
+# truth for local dev.
+/package-lock.json
+
 # ─── Design files (exclude from repo) ───────────────────────────────────────
 /designs/
 
 # ─── Test data (large files) ────────────────────────────────────────────────
 *.xlsx
+*.xls
+*.zip
+*.jpeg
+integration/data/
 Faciltiy Master.csv

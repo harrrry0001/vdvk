@@ -1,29 +1,29 @@
-import { doublePrecision, index, pgTable, serial, text, varchar } from "drizzle-orm/pg-core";
+import { real, index, sqliteTable, integer, text } from "drizzle-orm/sqlite-core";
 import { vdvks } from "../master/vdvk-beneficiary";
 import { beneficiaries } from "../master/vdvk-beneficiary";
 import { commodities } from "../master/commodity-grade-rate";
 import { grades } from "../master/commodity-grade-rate";
 
 // ─── FORM 1: MFP COLLECTION (HEADER) ─────────────────────────────────────
-export const form1Collections = pgTable("form1_collections", {
-  id: varchar("id", { length: 64 }).primaryKey(),
-  txnNo: varchar("txn_no", { length: 64 }).notNull().unique(),
-  vdvkCode: varchar("vdvk_code", { length: 64 }).notNull().references(() => vdvks.code),
-  vdvkNameSnapshot: varchar("vdvk_name_snapshot", { length: 191 }).notNull(),
-  collectionDate: varchar("collection_date", { length: 64 }).notNull(),
+export const form1Collections = sqliteTable("form1_collections", {
+  id: text("id").primaryKey(),
+  txnNo: text("txn_no").notNull().unique(),
+  vdvkCode: text("vdvk_code").notNull().references(() => vdvks.code),
+  vdvkNameSnapshot: text("vdvk_name_snapshot").notNull(),
+  collectionDate: text("collection_date").notNull(),
   placeOfSubmission: text("place_of_submission").notNull(),
   transactionType: text("transaction_type").notNull(),
-  overallRemarks: varchar("overall_remarks", { length: 500 }),
+  overallRemarks: text("overall_remarks"),
   status: text("status").notNull().default("Draft"),
-  approvalRemarks: varchar("approval_remarks", { length: 500 }),
-  approvedBy: varchar("approved_by", { length: 64 }),
-  approvedAt: varchar("approved_at", { length: 64 }),
-  submittedAt: varchar("submitted_at", { length: 64 }),
-  createdByRoleSnapshot: varchar("created_by_role_snapshot", { length: 64 }).notNull(),
-  createdByMandalSnapshot: varchar("created_by_mandal_snapshot", { length: 64 }),
-  createdBy: varchar("created_by", { length: 64 }).notNull(),
-  createdAt: varchar("created_at", { length: 64 }).$defaultFn(() => new Date().toISOString()),
-  updatedAt: varchar("updated_at", { length: 64 }).$defaultFn(() => new Date().toISOString()),
+  approvalRemarks: text("approval_remarks"),
+  approvedBy: text("approved_by"),
+  approvedAt: text("approved_at"),
+  submittedAt: text("submitted_at"),
+  createdByRoleSnapshot: text("created_by_role_snapshot").notNull(),
+  createdByMandalSnapshot: text("created_by_mandal_snapshot"),
+  createdBy: text("created_by").notNull(),
+  createdAt: text("created_at").$defaultFn(() => new Date().toISOString()),
+  updatedAt: text("updated_at").$defaultFn(() => new Date().toISOString()),
 }, (t) => ({
   idx_f1_collections_vdvk: index("idx_f1_collections_vdvk").on(t.vdvkCode),
   idx_f1_collections_date: index("idx_f1_collections_date").on(t.collectionDate),
@@ -32,25 +32,25 @@ export const form1Collections = pgTable("form1_collections", {
 }));
 
 // ─── FORM 1: COLLECTION ITEMS (BENEFICIARY × COMMODITY × GRADE ROWS) ────
-export const form1CollectionItems = pgTable("form1_collection_items", {
-  id: serial("id").primaryKey(),
-  collectionId: varchar("collection_id", { length: 64 }).notNull().references(() => form1Collections.id),
-  beneficiaryId: varchar("beneficiary_id", { length: 64 }).notNull().references(() => beneficiaries.id),
-  beneficiaryNameSnapshot: varchar("beneficiary_name_snapshot", { length: 191 }).notNull(),
-  commodityCode: varchar("commodity_code", { length: 64 }).notNull().references(() => commodities.code),
-  commodityNameSnapshot: varchar("commodity_name_snapshot", { length: 191 }).notNull(),
-  gradeCode: varchar("grade_code", { length: 64 }).references(() => grades.code),
-  gradeNameSnapshot: varchar("grade_name_snapshot", { length: 191 }),
+export const form1CollectionItems = sqliteTable("form1_collection_items", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  collectionId: text("collection_id").notNull().references(() => form1Collections.id),
+  beneficiaryId: text("beneficiary_id").notNull().references(() => beneficiaries.id),
+  beneficiaryNameSnapshot: text("beneficiary_name_snapshot").notNull(),
+  commodityCode: text("commodity_code").notNull().references(() => commodities.code),
+  commodityNameSnapshot: text("commodity_name_snapshot").notNull(),
+  gradeCode: text("grade_code").references(() => grades.code),
+  gradeNameSnapshot: text("grade_name_snapshot"),
   unit: text("unit").notNull(),
-  unitSnapshot: varchar("unit_snapshot", { length: 32 }).notNull(),
-  qtyKg: doublePrecision("qty_kg"),
-  qtyPieces: doublePrecision("qty_pieces"),
-  ratePerKg: doublePrecision("rate_per_kg"),
-  ratePerPiece: doublePrecision("rate_per_piece"),
-  rateSnapshot: varchar("rate_snapshot", { length: 191 }),
-  totalCost: doublePrecision("total_cost"),
-  remarks: varchar("remarks", { length: 500 }),
-  createdAt: varchar("created_at", { length: 64 }).$defaultFn(() => new Date().toISOString()),
+  unitSnapshot: text("unit_snapshot").notNull(),
+  qtyKg: real("qty_kg"),
+  qtyPieces: real("qty_pieces"),
+  ratePerKg: real("rate_per_kg"),
+  ratePerPiece: real("rate_per_piece"),
+  rateSnapshot: text("rate_snapshot"),
+  totalCost: real("total_cost"),
+  remarks: text("remarks"),
+  createdAt: text("created_at").$defaultFn(() => new Date().toISOString()),
 }, (t) => ({
   idx_f1_items_collection: index("idx_f1_items_collection").on(t.collectionId),
   idx_f1_items_beneficiary: index("idx_f1_items_beneficiary").on(t.beneficiaryId),

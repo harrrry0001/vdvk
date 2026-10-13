@@ -1,27 +1,21 @@
-import { drizzle } from "drizzle-orm/node-postgres";
-import pg from "pg";
-import { readFileSync, existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { drizzle } from "drizzle-orm/libsql";
+import { createClient } from "@libsql/client";
 import { config } from "dotenv";
 import * as schema from "./schema/index.js";
 
 config();
 
-const uri = process.env.DATABASE_URL;
-if (!uri) throw new Error("DATABASE_URL is required");
+// Turso (libSQL) is the only database target — see .env.
+// Creds: TURSO_DATABASE_URL (+ optional TURSO_AUTH_TOKEN), same shape as
+// integration/backend/turso.json.
+const url = process.env.TURSO_DATABASE_URL;
+if (!url) throw new Error("TURSO_DATABASE_URL is required");
 
-// Aiven: SSL — CA cert path defaults to ./ca.pem (project root), overridable
-// via DATABASE_CA_CERT.
-const caPath = resolve(process.env.DATABASE_CA_CERT ?? "ca.pem");
-const ssl = existsSync(caPath)
-  ? { ca: readFileSync(caPath) }
-  : { rejectUnauthorized: false };
-
-const pool = new pg.Pool({
-  connectionString: uri,
-  ssl,
-  max: 10,
-  connectionTimeoutMillis: 30000,
+const client = createClient({
+  url,
+  authToken: process.env.TURSO_AUTH_TOKEN || undefined,
 });
-export const db = drizzle(pool, { schema });
+
+export const db = drizzle(client, { schema });
 export type Database = typeof db;
+export { client as libsqlClient };

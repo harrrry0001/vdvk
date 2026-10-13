@@ -1,27 +1,22 @@
 import "dotenv/config";
-import pg from "pg";
-import { drizzle } from "drizzle-orm/node-postgres";
-import { migrate } from "drizzle-orm/node-postgres/migrator";
-import { readFileSync, existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { createClient } from "@libsql/client";
+import { drizzle } from "drizzle-orm/libsql";
+import { migrate } from "drizzle-orm/libsql/migrator";
 
 async function runMigrations() {
-  const uri = process.env.DATABASE_URL;
-  if (!uri) throw new Error("DATABASE_URL is required");
+  const url = process.env.TURSO_DATABASE_URL;
+  if (!url) throw new Error("TURSO_DATABASE_URL is required");
 
-  const caPath = resolve(process.env.DATABASE_CA_CERT ?? "ca.pem");
-  const ssl = existsSync(caPath)
-    ? { ca: readFileSync(caPath) }
-    : { rejectUnauthorized: false };
-
-  const client = new pg.Client({ connectionString: uri, ssl });
-  await client.connect();
+  const client = createClient({
+    url,
+    authToken: process.env.TURSO_AUTH_TOKEN || undefined,
+  });
   const db = drizzle(client);
 
   console.log("Running migrations...");
   await migrate(db, { migrationsFolder: "./src/db/migrations" });
   console.log("Migrations complete.");
-  await client.end();
+  client.close();
   process.exit(0);
 }
 

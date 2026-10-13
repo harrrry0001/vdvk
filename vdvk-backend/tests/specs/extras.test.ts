@@ -2,21 +2,25 @@ import { describe, expect, it } from "vitest";
 import { api, expectStatus } from "../helpers/client.js";
 import { tokenFor } from "../helpers/auth.js";
 import { today, uniq } from "../helpers/ctx.js";
+import { memberOf } from "../helpers/data.js";
 import { app } from "../../src/app.js";
 
-const form1Body = {
-  vdvkCode: "VDK-001", vdvkNameSnapshot: "Rampachodavaram VDVK",
-  collectionDate: today(), placeOfSubmission: "VDVK Facility",
-  transactionType: "Cash", overallRemarks: "extras-test",
-  items: [{
-    beneficiaryId: "BEN-001", beneficiaryNameSnapshot: "Ramu",
-    commodityCode: "CMD-001", commodityNameSnapshot: "Turmeric",
-    gradeCode: "GRD-001", gradeNameSnapshot: "A",
-    unit: "Kg", unitSnapshot: "Kg",
-    qtyKg: 5, qtyPieces: null, ratePerKg: 120, ratePerPiece: null,
-    rateSnapshot: "120", totalCost: 600, remarks: null,
-  }],
-};
+async function form1Body() {
+  const ben = await memberOf("VDK-001");
+  return {
+    vdvkCode: "VDK-001", vdvkNameSnapshot: "Rampachodavaram VDVK",
+    collectionDate: today(), placeOfSubmission: "VDVK Facility",
+    transactionType: "Cash", overallRemarks: "extras-test",
+    items: [{
+      beneficiaryId: ben.id, beneficiaryNameSnapshot: ben.name,
+      commodityCode: "CMD-001", commodityNameSnapshot: "Turmeric",
+      gradeCode: "GRD-001", gradeNameSnapshot: "A",
+      unit: "Kg", unitSnapshot: "Kg",
+      qtyKg: 5, qtyPieces: null, ratePerKg: 120, ratePerPiece: null,
+      rateSnapshot: "120", totalCost: 600, remarks: null,
+    }],
+  };
+}
 
 describe("EXTRAS: upload, notifications, delete", () => {
   // ─── FILE UPLOAD ──────────────────────────────────────────────────────
@@ -58,7 +62,7 @@ describe("EXTRAS: upload, notifications, delete", () => {
     const cc = await tokenFor("cc");
     const apm = await tokenFor("apm");
 
-    const created = await expectStatus("POST", "/api/forms/form1", 201, { token: cc, body: form1Body });
+    const created = await expectStatus("POST", "/api/forms/form1", 201, { token: cc, body: await form1Body() });
     const id = created.body.id;
 
     // CC submits → APM should receive a notification
@@ -97,16 +101,16 @@ describe("EXTRAS: upload, notifications, delete", () => {
     const dpm = await tokenFor("dpm");
 
     // delete a draft → ok, then 404
-    const draft = await expectStatus("POST", "/api/forms/form1", 201, { token: cc, body: form1Body });
+    const draft = await expectStatus("POST", "/api/forms/form1", 201, { token: cc, body: await form1Body() });
     await expectStatus("DELETE", `/api/forms/form1/${draft.body.id}`, 200, { token: cc });
     await expectStatus("GET", `/api/forms/form1/${draft.body.id}`, 404, { token: cc });
 
     // someone else's draft → 403
-    const other = await expectStatus("POST", "/api/forms/form1", 201, { token: cc, body: form1Body });
+    const other = await expectStatus("POST", "/api/forms/form1", 201, { token: cc, body: await form1Body() });
     await expectStatus("DELETE", `/api/forms/form1/${other.body.id}`, 403, { token: dpm });
 
     // submitted record → 400
-    const submitted = await expectStatus("POST", "/api/forms/form1", 201, { token: cc, body: form1Body });
+    const submitted = await expectStatus("POST", "/api/forms/form1", 201, { token: cc, body: await form1Body() });
     await expectStatus("PATCH", `/api/forms/form1/${submitted.body.id}/submit`, 200, { token: cc });
     await expectStatus("DELETE", `/api/forms/form1/${submitted.body.id}`, 400, { token: cc });
   });
@@ -117,7 +121,7 @@ describe("EXTRAS: upload, notifications, delete", () => {
     const apm = await tokenFor("apm");
     const mda = await tokenFor("mda");
 
-    const created = await expectStatus("POST", "/api/forms/form1", 201, { token: cc, body: form1Body });
+    const created = await expectStatus("POST", "/api/forms/form1", 201, { token: cc, body: await form1Body() });
     const id = created.body.id;
     await expectStatus("PATCH", `/api/forms/form1/${id}/submit`, 200, { token: cc });
     await expectStatus("PATCH", `/api/forms/form1/${id}/approve`, 200, { token: apm, body: { approved: false, remarks: "qty mismatch" } });

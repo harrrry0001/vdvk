@@ -9,7 +9,8 @@
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts",
-    "db:seed": "node src/db/seed/seed.cjs",
+    "db:seed": "node ../integration/backend/full-reset-seed.libsql.cjs",
+    "db:seed:pg": "node src/db/seed/seed.cjs",
     "db:studio": "drizzle-kit studio",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -17,6 +18,7 @@
   },
   "dependencies": {
     "@hono/node-server": "^2.1.0",
+    "@libsql/client": "^0.18.0",
     "bcryptjs": "^2.4.3",
     "dotenv": "^16.6.1",
     "drizzle-orm": "^0.33.0",

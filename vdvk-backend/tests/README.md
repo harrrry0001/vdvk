@@ -29,8 +29,11 @@ npm run test:watch # dev mode with hot reload
 
 - Tests run **in-process** against the Hono app (`tests/helpers/client.ts`
   imports `src/app.ts` — no server, no port).
-- They hit the **real Postgres dev DB on Aiven** (from `.env`), so mutating tests:
+- They hit the **real Turso (libSQL) database** (from `.env`), so mutating tests:
   - use unique suffixed IDs (see `tests/helpers/ctx.ts`), never touching seeded rows
+  - reference real field-data members via `tests/helpers/data.ts` (`memberOf()`)
+    instead of hardcoded beneficiary IDs — the suite needs the member import run
+    (see `integration/README.md`), not seeded fixture rows
   - create throwaway records that stay as `Draft`/`Approved` in dev data
   - restore the seeded password if the password-change test runs
 - Files run **sequentially** (`fileParallelism: false` in `vitest.config.ts`)
@@ -40,16 +43,16 @@ npm run test:watch # dev mode with hot reload
 
 ```powershell
 # Windows (PowerShell)
-$env:DATABASE_URL="postgres://<user>:<pass>@<host>:<port>/<db>"
-$env:DATABASE_CA_CERT="<path-to-ca.pem>"
+$env:TURSO_DATABASE_URL="libsql://<db-name>-<org>.<region>.turso.io"
+$env:TURSO_AUTH_TOKEN="<token>"
 npm test
 
 # bash/zsh
-DATABASE_URL=... DATABASE_CA_CERT=... npm test
+TURSO_DATABASE_URL=... TURSO_AUTH_TOKEN=... npm test
 ```
 
-The Aiven CA certificate is required for the TLS handshake (see `ca.pem` in the
-project root). To seed a fresh database before testing: `npm run db:seed`.
+No CA certificate is needed — the libSQL client talks HTTPS to Turso. To seed a
+fresh database before testing: `npm run db:seed`.
 
 ## Testing a live/deployed server
 
@@ -74,8 +77,12 @@ minus the in-process import.
 
 ## Fresh test database setup
 
-1. Create a database on Aiven (or any Postgres) and download its CA cert.
-2. Set `DATABASE_URL` and `DATABASE_CA_CERT` in `.env` (or the environment).
-3. Push the schema: `npx drizzle-kit push`.
+1. Create a Turso database (`turso db create <name>`) and a token
+   (`turso db tokens create <name>`).
+2. Set `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` in `.env` (or the environment).
+3. Push the schema: `npm run db:push`
+   (from-scratch rebuild: `npx tsx scripts/reset-schema.ts --yes` first).
 4. Seed: `npm run db:seed`.
-5. Run: `npm test`.
+5. Load field members: `node ../integration/backend/import-members.libsql.cjs`
+   (the suite picks real member IDs via `tests/helpers/data.ts`).
+6. Run: `npm test`.

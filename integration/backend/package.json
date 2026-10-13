@@ -1,0 +1,18 @@
+{
+  "name": "vdvk-integration-backend",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Offline loader + route patches for the VDVK field-data integration (merged into vdvk-backend).",
+  "scripts": {
+    "extension": "node apply-extension.cjs",
+    "load:dry": "node --max-old-space-size=4096 import-members.cjs --dry-run --create-missing-vdvk",
+    "load": "node --max-old-space-size=4096 import-members.cjs --create-missing-vdvk",
+    "load:approved": "node --max-old-space-size=4096 import-members.cjs --create-missing-vdvk --status=Approved"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.18.0",
+    "pg": "^8.11.0",
+    "selfsigned": "^5.5.0"
+  },
+  "comment": "`pg` is resolved from vdvk-backend/node_modules when this folder has no node_modules of its own."
+}

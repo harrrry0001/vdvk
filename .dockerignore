@@ -1,0 +1,20 @@
+# Keep the Railway build context small and free of secrets/local state.
+**/node_modules
+**/dist
+.git
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+uploads
+**/uploads
+*.log
+logs
+*.xlsx
+*.xls
+*.zip
+*.jpeg
+.vscode
+.idea

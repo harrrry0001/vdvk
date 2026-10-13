@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
+import { serveStatic } from "@hono/node-server/serve-static";
 import { readFile } from "node:fs/promises";
 import { join, normalize } from "node:path";
 import { errorHandler } from "./middleware/error-handler";
@@ -72,6 +73,27 @@ export function createApp() {
   app.route("/api/settings", settingsRoutes);
   app.route("/api/export", exportRoutes);
   app.route("/api/import", importRoutes);
+
+  // ─── STATIC FRONTEND (SPA) — production only ──────────────────────────
+  // On Railway the backend also serves the built React app from
+  // vdvk-frontend/dist so /api, /uploads and the SPA share one origin.
+  // Locally Vite serves the SPA on :5173 and this dist folder usually
+  // doesn't exist, so serveStatic simply falls through (next()).
+  const FRONTEND_DIST =
+    process.env.FRONTEND_DIST || join(process.cwd(), "..", "vdvk-frontend", "dist");
+
+  // Hashed build assets (/assets/*.js|css|...) and files at the dist root.
+  app.use("*", serveStatic({ root: FRONTEND_DIST }));
+
+  // SPA fallback — any other GET (e.g. /login, /dashboard) renders
+  // index.html so client-side routing works on deep links. Unknown
+  // /api and /uploads paths stay JSON 404s.
+  app.get("*", async (c, next) => {
+    if (c.req.path.startsWith("/api/") || c.req.path.startsWith("/uploads/")) {
+      return c.json({ error: "Not found" }, 404);
+    }
+    return serveStatic({ root: FRONTEND_DIST, path: "index.html" })(c, next);
+  });
 
   return app;
 }
